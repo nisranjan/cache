@@ -39,7 +39,6 @@ public class LRUCache<V> {
 	}
 	
 	public void put(Integer key, V value) {
-		System.out.println("\n ***** Inside LRUCache.put(K,V) ******");
 		if(map.containsKey(key)) { //Case : UPDATE in Cache
 			LRUCacheNode<V> node = map.get(key);
 			node.value = value; 
@@ -48,13 +47,15 @@ public class LRUCache<V> {
 			extractAndPushToHead(node);
 		}else { //Case : INSERT in Cache
 			if(currSize == capacity) { //Evict the LRU Node which is tail
+				System.out.println("\n ***** Inside LRUCache.put(K,V) ******");
+				System.out.println("Tail will be evicted, key is" + tail.key);
+
 				LRUCacheNode<V> penultimate = tail.previous;
 				//Remove the tail node from HashMap
-				map.remove(key);
+				map.remove(tail.key);
 				//Remove the tail from the DoublyLinkedList
 				if(penultimate != null) {
 					penultimate.next=null;
-					System.out.println("Tail is evicted, key was" + tail.key);
 					tail = penultimate;
 				}
 				currSize--;
