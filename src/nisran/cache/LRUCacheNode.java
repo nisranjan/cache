@@ -8,7 +8,7 @@ public class LRUCacheNode<V extends Object> {
 	V value;
 	
 	/* Bi-directional List 	 */
-	LRUCacheNode<V> previous;
+	LRUCacheNode<V> prev;
 	LRUCacheNode<V> next;
 	
 	public LRUCacheNode(Integer key, V value) {
