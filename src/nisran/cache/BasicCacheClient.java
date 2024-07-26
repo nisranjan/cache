@@ -19,11 +19,11 @@ public class BasicCacheClient {
 		
 		cache.put(key, value);
 		//Cache should contain the key-value
-		assert (cache.map.containsKey(key));
+		assert (cache.dict.containsKey(key));
 		System.out.println("\n ******* Inside testPut(K,V) *******");
 		System.out.println("Cache contains key " + key );
 		//Cache head should be the current key
-		assert (cache.head == cache.map.get(key));
+		assert (cache.head == cache.dict.get(key));
 		System.out.println("\n ******* Inside testPut(K,V) *******");
 		System.out.println("Key of head is  " + cache.head.key );
 	}

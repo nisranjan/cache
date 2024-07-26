@@ -11,7 +11,7 @@ public class LRUCache<V> {
 	LRUCacheNode<V> head;
 	LRUCacheNode<V> tail;
 	
-	Map<Integer, LRUCacheNode<V>> map;
+	Map<Integer, LRUCacheNode<V>> dict;
 	
 	
 	public LRUCache(Integer size) {
@@ -20,12 +20,12 @@ public class LRUCache<V> {
 		//Set Current Size as 0
 		this.currSize = 0;
 		//Init the Map
-		map = new HashMap<Integer, LRUCacheNode<V>>(this.capacity);	
+		dict = new HashMap<Integer, LRUCacheNode<V>>(this.capacity);	
 		
 	}
 	
 	public V get(Integer key) {
-		LRUCacheNode<V> node = map.get(key); //Case : SEARCH in Cache
+		LRUCacheNode<V> node = dict.get(key); //Case : SEARCH in Cache
 		//TODO: value could be null, which means a cache miss, 
 		//TODO: handle in calling class
 		
@@ -39,8 +39,8 @@ public class LRUCache<V> {
 	}
 	
 	public void put(Integer key, V value) {
-		if(map.containsKey(key)) { //Case : UPDATE in Cache
-			LRUCacheNode<V> node = map.get(key);
+		if(dict.containsKey(key)) { //Case : UPDATE in Cache
+			LRUCacheNode<V> node = dict.get(key);
 			node.value = value; 
 			//TODO: Handle in the case of Write-Aside Cache
 			//TODO: Remove the Row with Key as P_Key from dB
@@ -52,7 +52,7 @@ public class LRUCache<V> {
 
 				LRUCacheNode<V> penultimate = tail.previous;
 				//Remove the tail node from HashMap
-				map.remove(tail.key);
+				dict.remove(tail.key);
 				//Remove the tail from the DoublyLinkedList
 				if(penultimate != null) {
 					penultimate.next=null;
@@ -70,7 +70,7 @@ public class LRUCache<V> {
 				head = tail = newNode;
 			}
 			head = newNode;
-			map.put(key, newNode);
+			dict.put(key, newNode);
 			currSize++;
 		}
 	}
