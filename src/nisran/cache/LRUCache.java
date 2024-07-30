@@ -36,6 +36,14 @@ public class LRUCache<V> {
 		
 	}
 	
+	/**
+	 * Given an integer key, 
+	 * 				the value associated with key if that exists
+	 * 				or 'null' if the key doesn't exist in Cache
+	 * 
+	 * @param key
+	 * @return
+	 */
 	public V get(Integer key) {
 		//Case 1: SEARCH in Cache
 		if(dict.containsKey(key)) {
