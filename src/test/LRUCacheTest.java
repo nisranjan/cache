@@ -1,4 +1,4 @@
-package nisran.cache.test;
+package nisran.cache;
 
 import org.junit.jupiter.api.Test;
 
