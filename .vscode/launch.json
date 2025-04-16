@@ -1,0 +1,28 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Current File",
+            "request": "launch",
+            "mainClass": "${file}"
+        },
+        {
+            "type": "java",
+            "name": "CacheApplication",
+            "request": "launch",
+            "mainClass": "nisran.CacheApplication",
+            "projectName": "cache"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-CacheApplication",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "nisran.CacheApplication",
+            "projectName": "cache",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
