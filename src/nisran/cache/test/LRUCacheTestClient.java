@@ -14,7 +14,7 @@ class LRUCacheTestClient {
 	
 	static int CACHE_CAPACITY = 2;
 	
-	LRUCache<Integer> subject;
+	LRUCache<Integer,Integer> subject;
 	
 
 	@BeforeAll
@@ -27,7 +27,7 @@ class LRUCacheTestClient {
 
 	@BeforeEach
 	void setUp() throws Exception {
-		subject = new LRUCache<Integer>(CACHE_CAPACITY);
+		subject = new LRUCache<Integer,Integer>(CACHE_CAPACITY);
 	}
 
 	@AfterEach
@@ -37,14 +37,14 @@ class LRUCacheTestClient {
 
 	@Test
 	void testGet() {
-		subject.put(1,1);
+		subject.set(1,1);
 		assertEquals(1, subject.get(1));
 		
 	}
 
 	@Test
 	void testPut() {
-		subject.put(2,2);
+		subject.set(2,2);
 		assertEquals(2, subject.get(2));
 	}
 	
@@ -55,25 +55,25 @@ class LRUCacheTestClient {
 		//[[2],[1,1],[2,2],[1],[3,3],[2],[4,4],[1],[3],[4]]
 		
 		//"LRUCache" - [2]
-		subject = new LRUCache<Integer>(2);
+		subject = new LRUCache<Integer,Integer>(2);
 		
 		//"put" - [1,1]
-		subject.put(1, 1);
+		subject.set(1, 1);
 		
 		//"put" - [2,2]
-		subject.put(2, 2);
+		subject.set(2, 2);
 		
 		//"get" - [1]
 		assertEquals(1, subject.get(1));
 		
 		//"put" - [3,3]
-		subject.put(3, 3);
+		subject.set(3, 3);
 				
 		//"get" - [2]
 		assertEquals(null, subject.get(2));
 		
 		//"put" - [4,4]
-		subject.put(4, 4);
+		subject.set(4, 4);
 				
 		//"get" - [1]
 		assertEquals(null, subject.get(1));

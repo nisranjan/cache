@@ -9,28 +9,28 @@ package nisran.cache;
  */
 public class BasicCacheClient {
 	
-	static LRUCache<String> cache;
+	static LRUCache<Integer,String> cache;
 
 	static void init(Integer capacity) {
-		BasicCacheClient.cache = new LRUCache<String>(capacity);
+		BasicCacheClient.cache = new LRUCache<Integer,String>(capacity);
 	}
 	
-	static void testPut(Integer key, String value) {
+	static void testSet(Integer key, String value) {
 		
-		cache.put(key, value);
+		cache.set(key, value);
 		//Cache should contain the key-value
-		assert (cache.dict.containsKey(key));
-		System.out.println("\n ******* Inside testPut(K,V) *******");
+		assert (value == cache.get(key));
+		System.out.println("\n ******* Inside testSet(K,V) *******");
 		System.out.println("Cache contains key " + key );
 		//Cache head should be the current key
-		assert (cache.head == cache.dict.get(key));
+		//assert (cache.head == cache.dict.get(key));
 		//System.out.println("\n ******* Inside testPut(K,V) *******");
 		//System.out.println("Key of head is  " + cache.head.key );
 	}
 	
 	static void testGet(Integer key) {
 		
-		assert(cache.currSize != 0);
+		assert(cache.list.size() != 0);
 		
 		String value = cache.get(key);
 		
@@ -40,7 +40,7 @@ public class BasicCacheClient {
 		}else {
 			//Node should be head after SEARCH
 			//Testing is not correct, Assertions are not working
-			assert(value == cache.head.next.value);
+			assert(value == cache.dict.get(cache.list.getFirst()));
 			System.out.println("\n ******* Inside testGet(K) *******");
 			System.out.println("Value at head is  " + value );
 		}
@@ -61,9 +61,9 @@ public class BasicCacheClient {
 		
 		BasicCacheClient.init(1);
 		//BasicCacheClient.testGet("Nishant".hashCode());
-		BasicCacheClient.testPut("First String".hashCode(), "First String");
+		BasicCacheClient.testSet("First String".hashCode(), "First String");
 		BasicCacheClient.testGet("First String".hashCode());
-		BasicCacheClient.testPut("Second String".hashCode(), "Second String");
+		BasicCacheClient.testSet("Second String".hashCode(), "Second String");
 		BasicCacheClient.testGet("First String".hashCode());
 		BasicCacheClient.testGet("Second String".hashCode());
 	}
