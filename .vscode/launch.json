@@ -3,10 +3,18 @@
     "configurations": [
         {
             "type": "java",
+            "name": "BasicClient",
+            "request": "launch",
+            "mainClass": "nisran.BasicClient",
+            "projectName": "cache"
+        },
+        /*
+        {
+            "type": "java",
             "name": "Current File",
             "request": "launch",
             "mainClass": "${file}"
-        },
+        },*/
         {
             "type": "java",
             "name": "CacheApplication",
@@ -14,6 +22,7 @@
             "mainClass": "nisran.CacheApplication",
             "projectName": "cache"
         },
+        /*
         {
             "type": "java",
             "name": "Spring Boot-CacheApplication",
@@ -23,6 +32,6 @@
             "projectName": "cache",
             "args": "",
             "envFile": "${workspaceFolder}/.env"
-        }
+        }*/
     ]
 }
