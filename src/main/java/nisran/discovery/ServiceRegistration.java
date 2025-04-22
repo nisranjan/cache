@@ -3,9 +3,9 @@ package nisran.discovery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Component;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import software.amazon.awssdk.services.servicediscovery.ServiceDiscoveryClient;
@@ -18,9 +18,9 @@ import software.amazon.awssdk.services.ecs.model.Task;
 import java.net.InetAddress;
 import java.util.UUID;
 
-@Component
+@Configuration
 @EnableScheduling
-@Profile("!dev")
+@Profile("cluster")
 public class ServiceRegistration {
 
     private static final Logger logger = LoggerFactory.getLogger(ServiceRegistration.class);
@@ -36,15 +36,6 @@ public class ServiceRegistration {
     private String instanceId;
     private String privateIp;
 
-    public ServiceRegistration() {
-        this.serviceDiscoveryClient = null;
-        this.ecsClient = null;
-        this.instanceId = UUID.randomUUID().toString();
-        this.privateIp = null;
-        logger.debug("Initialized ServiceRegistration with instanceId: {} and privateIp: {}", instanceId, privateIp);
-    }
-
-    @Autowired(required = false)
     public ServiceRegistration(ServiceDiscoveryClient serviceDiscoveryClient, EcsClient ecsClient) {
         this.serviceDiscoveryClient = serviceDiscoveryClient;
         this.ecsClient = ecsClient;
@@ -93,11 +84,8 @@ public class ServiceRegistration {
         }
     }
 
-    public String registerService() {
-        if (serviceDiscoveryClient == null || ecsClient == null) {
-            logger.info("Service registration skipped - AWS clients not available");
-            return null;
-        }
+    @Bean
+    public void registerService() {
         try {
             logger.info("Starting service registration for service: {}", serviceName);
             // Create service if it doesn't exist
@@ -117,7 +105,6 @@ public class ServiceRegistration {
 
             serviceDiscoveryClient.registerInstance(request);
             logger.info("Successfully registered service instance with ID: {}", instanceId);
-            return instanceId;
         } catch (Exception e) {
             logger.error("Failed to register service", e);
             throw new RuntimeException("Failed to register service", e);
@@ -170,16 +157,13 @@ public class ServiceRegistration {
         try {
             logger.debug("Sending heartbeat for instance: {}", instanceId);
             // Send heartbeat to keep instance registered
-            if(serviceDiscoveryClient != null){
-                serviceDiscoveryClient.updateInstanceCustomHealthStatus(
+            serviceDiscoveryClient.updateInstanceCustomHealthStatus(
                     UpdateInstanceCustomHealthStatusRequest.builder()
                             .serviceId(findOrCreateService())
                             .instanceId(instanceId)
                             .status(CustomHealthStatus.HEALTHY)
                             .build()
-             );
-            }
-            
+            );
             logger.debug("Heartbeat sent successfully for instance: {}", instanceId);
         } catch (Exception e) {
             logger.error("Failed to send heartbeat for instance: {}", instanceId, e);

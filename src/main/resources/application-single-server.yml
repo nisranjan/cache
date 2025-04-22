@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: cache-service
+  cloud:
+    aws:
+      discovery:
+        enabled: false
+
+server:
+  port: 8080
+
+cache:
+  capacity: 100
+
+logging:
+  level:
+    root: INFO
+    nisran: DEBUG 

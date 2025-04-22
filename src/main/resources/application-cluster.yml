@@ -18,8 +18,6 @@ spring:
         name: cache-service
       sqs:
         enabled: true
-  profiles:
-    active: single-server
 
 server:
   port: 8080
