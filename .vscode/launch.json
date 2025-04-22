@@ -22,16 +22,15 @@
             "mainClass": "nisran.CacheApplication",
             "projectName": "cache"
         },
-        /*
         {
             "type": "java",
-            "name": "Spring Boot-CacheApplication",
+            "name": "Spring Boot-CacheApplication (Dev Mode)",
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "mainClass": "nisran.CacheApplication",
             "projectName": "cache",
-            "args": "",
+            "args": "--spring.profiles.active=dev",
             "envFile": "${workspaceFolder}/.env"
-        }*/
+        }
     ]
 }
