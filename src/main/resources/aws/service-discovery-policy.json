@@ -1,0 +1,27 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "servicediscovery:RegisterInstance",
+                "servicediscovery:DeregisterInstance",
+                "servicediscovery:GetInstance",
+                "servicediscovery:ListInstances",
+                "servicediscovery:ListServices",
+                "servicediscovery:CreateService",
+                "servicediscovery:GetService",
+                "servicediscovery:UpdateInstanceCustomHealthStatus"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ecs:DescribeTasks",
+                "ecs:ListTasks"
+            ],
+            "Resource": "*"
+        }
+    ]
+} 

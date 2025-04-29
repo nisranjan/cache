@@ -1,0 +1,34 @@
+{
+    "family": "cache-service",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "256",
+    "memory": "512",
+    "executionRoleArn": "arn:aws:iam::453136820892:role/ecsTaskExecutionRole",
+    "taskRoleArn": "arn:aws:iam::453136820892:role/ecsTaskRole",
+    "enableExecuteCommand": true,
+    "containerDefinitions": [
+        {
+            "name": "cache-service",
+            "image": "453136820892.dkr.ecr.ap-south-1.amazonaws.com/cache-server:latest",
+            "essential": true,
+            "portMappings": [
+                {
+                    "containerPort": 8080,
+                    "hostPort": 8080,
+                    "protocol": "tcp"
+                }
+            ],
+            "environment": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/cache-service",
+                    "awslogs-region": "ap-south-1",
+                    "awslogs-stream-prefix": "ecs",
+                    "awslogs-create-group": "true"
+                }
+            }
+        }
+    ]
+}

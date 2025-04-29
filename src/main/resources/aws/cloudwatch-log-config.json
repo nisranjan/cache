@@ -1,0 +1,9 @@
+{
+    "logDriver": "awslogs",
+    "options": {
+        "awslogs-group": "/ecs/cache-service",
+        "awslogs-region": "ap-south-1",
+        "awslogs-stream-prefix": "ecs",
+        "awslogs-create-group": "true"
+    }
+} 

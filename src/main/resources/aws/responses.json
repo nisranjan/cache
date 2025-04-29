@@ -1,0 +1,185 @@
+#Response to create cluster command
+{
+    "cluster": {
+        "clusterArn": "arn:aws:ecs:ap-south-1:453136820892:cluster/cache-cluster",
+        "clusterName": "cache-cluster",
+        "status": "ACTIVE",
+        "registeredContainerInstancesCount": 0,
+        "runningTasksCount": 0,
+        "pendingTasksCount": 0,
+        "activeServicesCount": 0,
+        "statistics": [],
+        "tags": [],
+        "settings": [
+            {
+                "name": "containerInsights",
+                "value": "disabled"
+            }
+        ],
+        "capacityProviders": [],
+        "defaultCapacityProviderStrategy": []
+    }
+}
+
+#Response to ecs-register task command
+{
+    "taskDefinition": {
+        "taskDefinitionArn": "arn:aws:ecs:ap-south-1:453136820892:task-definition/cache-app:1",
+        "containerDefinitions": [
+            {
+                "name": "cache-server",
+                "image": "453136820892.dkr.ecr.ap-south-1.amazonaws.com/cache/single_server:latestt",
+                "cpu": 0,
+                "portMappings": [
+                    {
+                        "containerPort": 8080,
+                        "hostPort": 8080,
+                        "protocol": "tcp"
+                    }
+                ],
+                "essential": true,
+                "environment": [],
+                "mountPoints": [],
+                "volumesFrom": [],
+                "systemControls": []
+            }
+        ],
+        "family": "cache-app",
+        "executionRoleArn": "arn:aws:iam::453136820892:role/EcsTaskExecutionRole",
+        "networkMode": "awsvpc",
+        "revision": 1,
+        "volumes": [],
+        "status": "ACTIVE",
+        "requiresAttributes": [
+            {
+                "name": "com.amazonaws.ecs.capability.ecr-auth"
+            },
+            {
+                "name": "ecs.capability.execution-role-ecr-pull"
+            },
+            {
+                "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"  
+            },
+            {
+                "name": "ecs.capability.task-eni"
+            }
+        ],
+        "placementConstraints": [],
+        "compatibilities": [
+            "EC2",
+            "FARGATE"
+        ],
+        "requiresCompatibilities": [
+            "FARGATE"
+        ],
+        "cpu": "256",
+        "memory": "512",
+        "registeredAt": "2025-04-18T13:01:44.968000+05:30",
+        "registeredBy": "arn:aws:iam::453136820892:user/nranjan"
+    }
+}
+
+#Response to Security Group creation command
+{
+    "GroupId": "sg-03df1f30f3ce079a3",
+    "SecurityGroupArn": "arn:aws:ec2:ap-south-1:453136820892:security-group/sg-03df1f30f3ce079a3"
+}
+ #Response to rule within the security group
+ {
+    "Return": true,
+    "SecurityGroupRules": [
+        {
+            "SecurityGroupRuleId": "sgr-00bd2a712e4300f47",
+            "GroupId": "sg-03df1f30f3ce079a3",
+            "GroupOwnerId": "453136820892",
+            "IsEgress": false,
+            "IpProtocol": "tcp",
+            "FromPort": 8080,
+            "ToPort": 8080,
+            "CidrIpv4": "0.0.0.0/0",
+            "SecurityGroupRuleArn": "arn:aws:ec2:ap-south-1:453136820892:security-group-rule/sgr-00bd2a712e4300f47"
+        }
+    ]
+}
+
+#Resonse to creating a Service
+{
+    "service": {
+        "serviceArn": "arn:aws:ecs:ap-south-1:453136820892:service/cache-cluster/cache-service",
+        "serviceName": "cache-service",
+        "clusterArn": "arn:aws:ecs:ap-south-1:453136820892:cluster/cache-cluster",
+        "loadBalancers": [],
+        "serviceRegistries": [],
+        "status": "ACTIVE",
+        "desiredCount": 1,
+        "runningCount": 0,
+        "pendingCount": 0,
+        "launchType": "FARGATE",
+        "platformVersion": "LATEST",
+        "platformFamily": "Linux",
+        "taskDefinition": "arn:aws:ecs:ap-south-1:453136820892:task-definition/cache-app:1",
+        "deploymentConfiguration": {
+            "deploymentCircuitBreaker": {
+                "enable": false,
+                "rollback": false
+            },
+            "maximumPercent": 200,
+            "minimumHealthyPercent": 100
+        },
+        "deployments": [
+            {
+                "id": "ecs-svc/6177922354668526328",
+                "status": "PRIMARY",
+                "taskDefinition": "arn:aws:ecs:ap-south-1:453136820892:task-definition/cache-app:1",
+                "desiredCount": 0,
+                "pendingCount": 0,
+                "runningCount": 0,
+                "failedTasks": 0,
+                "createdAt": "2025-04-18T13:38:37.014000+05:30",
+                "updatedAt": "2025-04-18T13:38:37.014000+05:30",
+                "launchType": "FARGATE",
+                "platformVersion": "1.4.0",
+                "platformFamily": "Linux",
+                "networkConfiguration": {
+                    "awsvpcConfiguration": {
+                        "subnets": [
+                            "subnet-09ca431395d24b210"
+                        ],
+                        "securityGroups": [
+                            "sg-03df1f30f3ce079a3"
+                        ],
+                        "assignPublicIp": "ENABLED"
+                    }
+                },
+                "rolloutState": "IN_PROGRESS",
+                "rolloutStateReason": "ECS deployment ecs-svc/6177922354668526328 in progress."
+            }
+        ],
+        "roleArn": "arn:aws:iam::453136820892:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
+        "events": [],
+        "createdAt": "2025-04-18T13:38:37.014000+05:30",
+        "placementConstraints": [],
+        "placementStrategy": [],
+        "networkConfiguration": {
+            "awsvpcConfiguration": {
+                "subnets": [
+                    "subnet-09ca431395d24b210"
+                ],
+                "securityGroups": [
+                    "sg-03df1f30f3ce079a3"
+                ],
+                "assignPublicIp": "ENABLED"
+            }
+        },
+        "healthCheckGracePeriodSeconds": 0,
+        "schedulingStrategy": "REPLICA",
+        "deploymentController": {
+            "type": "ECS"
+        },
+        "createdBy": "arn:aws:iam::453136820892:user/nranjan",
+        "enableECSManagedTags": false,
+        "propagateTags": "NONE",
+        "enableExecuteCommand": false,
+        "availabilityZoneRebalancing": "DISABLED"
+    }
+}
