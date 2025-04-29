@@ -56,6 +56,7 @@
         <dependency>
             <groupId>io.awspring.cloud</groupId>
             <artifactId>spring-cloud-aws-starter-sqs</artifactId>
+            <version>3.0.0</version>
         </dependency>
 
         <!-- AWS SDK -->
@@ -114,8 +115,17 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-    
+    <!-- Profiles -->
     <profiles>
+        <profile>
+            <id>single-server</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <spring.profiles.active>single-server</spring.profiles.active>
+            </properties>
+        </profile>
         <profile>
             <id>cluster</id>
             <activation>
@@ -130,6 +140,12 @@
     <build>
         <sourceDirectory>src/main/java</sourceDirectory>
         <testSourceDirectory>src/test/java</testSourceDirectory>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

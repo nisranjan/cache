@@ -1,16 +1,16 @@
 spring:
   application:
     name: cache-service
-  cloud:
-    aws:
-      discovery:
-        enabled: false
+
+cloud:
+  discovery:
+    enabled: false
 
 server:
   port: 8080
 
 cache:
-  capacity: 100
+  capacity: 50
 
 logging:
   level:

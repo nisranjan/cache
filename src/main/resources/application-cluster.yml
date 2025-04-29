@@ -5,9 +5,6 @@ spring:
     aws:
       region:
         static: ap-south-1
-      credentials:
-        access-key: ${AWS_ACCESS_KEY_ID}
-        secret-key: ${AWS_SECRET_ACCESS_KEY}
       stack:
         auto: false
       discovery:
