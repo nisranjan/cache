@@ -15,7 +15,7 @@
     <artifactId>cache</artifactId>
     <version>1.2-SNAPSHOT</version>
     <name>cache-implementation</name>
-    <description>Cache Implementation</description>
+    <description>Cache Implementation using Cloud providers and services</description>
     
     <properties>
         <java.version>17</java.version>
@@ -44,31 +44,16 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- Spring Cloud AWS -->
-        <dependency>
-            <groupId>io.awspring.cloud</groupId>
-            <artifactId>spring-cloud-aws-starter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.awspring.cloud</groupId>
-            <artifactId>spring-cloud-aws-starter-parameter-store</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.awspring.cloud</groupId>
-            <artifactId>spring-cloud-aws-starter-sqs</artifactId>
-            <version>3.0.0</version>
-        </dependency>
-
         <!-- AWS SDK -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>servicediscovery</artifactId>
-            <version>${aws.sdk.version}</version>
+            <!--<version>${aws.sdk.version}</version>-->
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>ecs</artifactId>
-            <version>${aws.sdk.version}</version>
+            <!--<version>${aws.sdk.version}</version>-->
         </dependency>
 
         <!-- Lombok -->
@@ -99,17 +84,11 @@
 
     <dependencyManagement>
         <dependencies>
+        <!-- Amazon AWS SDK-->
             <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-dependencies</artifactId>
-                <version>${spring-cloud.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.awspring.cloud</groupId>
-                <artifactId>spring-cloud-aws-dependencies</artifactId>
-                <version>${spring-cloud-aws.version}</version>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws.sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

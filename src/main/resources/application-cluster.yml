@@ -24,10 +24,11 @@ cache:
   service:
     discovery:
       enabled: true
-      heartbeat-interval: 30s
-      deregister-interval: 60s
+      heartbeat-interval: 3000
+      deregister-interval: 6000
 
 logging:
   level:
     root: INFO
-    nisran: DEBUG 
+    nisran: DEBUG
+    software.amazon.awssdk: DEBUG 
