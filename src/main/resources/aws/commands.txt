@@ -1,0 +1,24 @@
+## Create the Elastic Container Service
+aws ecs create-service --profile nranjan --cluster cache-cluster --service-name cache-cluster-service --task-definition cache-cluster-task:1 --desired-count 2 --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets=[subnet-09ca431395d24b210,subnet-099ca8dc98d900c44,subnet-02401ae78f2b41ea1],securityGroups=[sg-03df1f30f3ce079a3],assignPublicIp=ENABLED}" --region ap-south-1
+
+## Update the Elastic Container service
+aws ecs update-service --profile nranjan --cluster cache-cluster --service cache-service --desired-count 0 --region ap-south-1
+
+## Delete the Elastic Container Service
+aws ecs delete-service \
+    --cluster cache-cluster \
+    --service cache-service \
+    --region <your-region>
+
+## Docker build command
+docker build -t cache-server:latest .
+
+## Docker tag command
+docker tag cache-cluster:latest 453136820892.dkr.ecr.ap-south-1.amazonaws.com/cache/cluster:latest
+
+## DOcker push command
+docker push 453136820892.dkr.ecr.ap-south-1.amazonaws.com/cache/cluster:latest
+
+## AWS / Docker Login
+aws ecr get-login-password --region ap-south-1 --profile nranjan| docker login --username AWS --password-stdin 453136820892.dkr.ecr.ap-south-1.amazonaws.com
+

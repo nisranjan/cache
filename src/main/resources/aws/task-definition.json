@@ -1,10 +1,10 @@
 {
-    "family": "cache-service",
+    "family": "cache-service-task",
     "networkMode": "awsvpc",
     "requiresCompatibilities": ["FARGATE"],
     "cpu": "256",
     "memory": "512",
-    "executionRoleArn": "arn:aws:iam::453136820892:role/ecsTaskExecutionRole",
+    "executionRoleArn": "arn:aws:iam::453136820892:role/EcsTaskExecutionRole",
     "taskRoleArn": "arn:aws:iam::453136820892:role/ecsTaskRole",
     "enableExecuteCommand": true,
     "containerDefinitions": [
