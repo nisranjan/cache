@@ -1,20 +1,17 @@
 spring:
   application:
-    name: cache-service
+    name: cache-cluster-service
   cloud:
     aws:
       region:
         static: ap-south-1
-      stack:
-        auto: false
-      discovery:
-        enabled: true
-      parameter-store:
-        enabled: true
-        prefix: /config
-        name: cache-service
-      sqs:
-        enabled: true
+      
+
+aws:
+  servicediscovery:
+    namespace:
+      name: cache-service-internal:local
+      vpc-id: vpc-0503be314e240016e
 
 server:
   port: 8080
@@ -24,8 +21,8 @@ cache:
   service:
     discovery:
       enabled: true
-      heartbeat-interval: 3000
-      deregister-interval: 6000
+      heartbeat-interval: 30000
+      deregister-interval: 100000
 
 logging:
   level:

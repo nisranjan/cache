@@ -16,6 +16,9 @@ import software.amazon.awssdk.services.ecs.model.DescribeTasksResponse;
 import software.amazon.awssdk.services.ecs.model.Task;
 
 import java.net.InetAddress;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Configuration
@@ -31,6 +34,12 @@ public class ServiceRegistration {
     @Value("${server.port}")
     private int port;
 
+    @Value("${aws.servicediscovery.namespace.name}")
+    private String namespaceName;
+
+    @Value("${aws.servicediscovery.namespace.vpc-id}")
+    private String vpcId; // Required for creating Private DNS namespaces
+
     private final ServiceDiscoveryClient serviceDiscoveryClient;
     private final EcsClient ecsClient;
     private String instanceId;
@@ -41,7 +50,7 @@ public class ServiceRegistration {
         this.ecsClient = ecsClient;
         this.instanceId = UUID.randomUUID().toString();
         this.privateIp = getPrivateIp();
-        logger.debug("Initialized ServiceRegistration with instanceId: {} and privateIp: {}", instanceId, privateIp);
+        logger.debug("Initialized ServiceRegistration with instanceId: {}, privateIp: {}", instanceId, privateIp);
     }
 
     private String getPrivateIp() {
@@ -54,7 +63,7 @@ public class ServiceRegistration {
                     .cluster(System.getenv("ECS_CLUSTER"))
                     .tasks(taskArn)
                     .build();
-                
+
                 DescribeTasksResponse response = ecsClient.describeTasks(request);
                 if (!response.tasks().isEmpty()) {
                     Task task = response.tasks().get(0);
@@ -73,7 +82,7 @@ public class ServiceRegistration {
                     }
                 }
             }
-            
+
             // Fallback to local network interface
             String localIp = InetAddress.getLocalHost().getHostAddress();
             logger.debug("Using fallback local IP: {}", localIp);
@@ -88,19 +97,31 @@ public class ServiceRegistration {
     public void registerService() {
         try {
             logger.info("Starting service registration for service: {}", serviceName);
+            // Ensure namespace exists
+            String namespaceId = findOrCreateNamespace();
+
             // Create service if it doesn't exist
-            String serviceId = findOrCreateService();
+            String serviceId = findOrCreateService(namespaceId);
+
+            // Build attributes map safely, handling potential nulls from environment variables
+            Map<String, String> attributes = new HashMap<>();
+            attributes.put("AWS_INSTANCE_IPV4", privateIp); // privateIp should be non-null due to constructor logic
+            attributes.put("AWS_INSTANCE_PORT", String.valueOf(port));
+
+            String taskArn = System.getenv("ECS_TASK_ARN");
+            if (taskArn != null) {
+                attributes.put("ECS_TASK_ARN", taskArn);
+            }
+            String clusterName = System.getenv("ECS_CLUSTER");
+            if (clusterName != null) {
+                attributes.put("ECS_CLUSTER", clusterName);
+            }
 
             // Register instance
             RegisterInstanceRequest request = RegisterInstanceRequest.builder()
                     .serviceId(serviceId)
                     .instanceId(instanceId)
-                    .attributes(java.util.Map.of(
-                            "AWS_INSTANCE_IPV4", privateIp,
-                            "AWS_INSTANCE_PORT", String.valueOf(port),
-                            "ECS_TASK_ARN", System.getenv("ECS_TASK_ARN"),
-                            "ECS_CLUSTER", System.getenv("ECS_CLUSTER")
-                    ))
+                    .attributes(attributes) // Use the safely built map
                     .build();
 
             serviceDiscoveryClient.registerInstance(request);
@@ -111,61 +132,137 @@ public class ServiceRegistration {
         }
     }
 
-    private String findOrCreateService() {
+    private String findOrCreateNamespace(){
+        try {
+            logger.debug("Looking for existing namespace with name: {}", namespaceName);
+            // Try to find existing namespace
+            ListNamespacesRequest listNamespacesRequest = ListNamespacesRequest.builder()
+                    .filters(NamespaceFilter.builder()      
+                            .name(NamespaceFilterName.NAME)
+                            .values(namespaceName)
+                            .condition(FilterCondition.EQ)
+                            .build(),
+                             NamespaceFilter.builder() // Filter by type as well
+                            .name(NamespaceFilterName.TYPE)
+                            .values(NamespaceType.DNS_PRIVATE.toString())
+                            .condition(FilterCondition.EQ)
+                            .build())
+                    .build();
+
+            ListNamespacesResponse listNamespacesResponse = serviceDiscoveryClient.listNamespaces(listNamespacesRequest);
+
+            Optional<NamespaceSummary> existingNamespace = listNamespacesResponse.namespaces().stream().findFirst();
+
+            if (existingNamespace.isPresent()) {
+                String namespaceId = existingNamespace.get().id();
+                logger.debug("Found existing namespace with ID: {}", namespaceId);
+                return namespaceId;
+            }
+
+            logger.info("Creating new private DNS namespace with name: {} in VPC: {}", namespaceName, vpcId);
+            CreatePrivateDnsNamespaceRequest createNamespaceRequest = CreatePrivateDnsNamespaceRequest.builder()
+                    .name(namespaceName)
+                    .vpc(vpcId)
+                    .description("Namespace for " + serviceName + " discovery")
+                    .build();
+            // Note: Namespace creation is asynchronous. We might need to wait or handle the operation ID.
+            // For simplicity here, we assume immediate availability for subsequent calls, which might not be robust.
+            CreatePrivateDnsNamespaceResponse createNamespaceResponse = serviceDiscoveryClient.createPrivateDnsNamespace(createNamespaceRequest);
+            // It's better to poll using the OperationId from createNamespaceResponse until the namespace is ready.
+            // However, finding the namespace ID immediately after creation isn't directly available in the response.
+            // We might need to list again or use GetOperation. For now, we'll re-list as a simple approach.
+            logger.info("Namespace creation initiated (Operation ID: {}). Re-querying for ID.", createNamespaceResponse.operationId());
+            // Re-query after a short delay or use GetOperation API for robustness
+            Thread.sleep(5000); // Simple delay, replace with proper polling
+            return findOrCreateNamespace(); // Recursive call to get the ID after creation attempt
+
+        } catch (Exception e) {
+            logger.error("Failed to find or create namespace '{}'", namespaceName, e);
+            throw new RuntimeException("Failed to find or create namespace: " + namespaceName, e);
+        }
+    }
+
+    private String findOrCreateService(String namespaceId){
         try {
             logger.debug("Looking for existing service with name: {}", serviceName);
             // Try to find existing service
             ListServicesRequest listRequest = ListServicesRequest.builder()
                     .filters(ServiceFilter.builder()
-                            .name("NAME")
-                            .values(serviceName)
-                            .build())
+                    .name(ServiceFilterName.NAMESPACE_ID)
+                    .values(namespaceId)
+                    .condition(FilterCondition.EQ)
+                    .build()) // Only filter by NAMESPACE_ID
                     .build();
 
             ListServicesResponse listResponse = serviceDiscoveryClient.listServices(listRequest);
-            if (!listResponse.services().isEmpty()) {
-                String serviceId = listResponse.services().get(0).id();
-                logger.debug("Found existing service with ID: {}", serviceId);
+            // Filter client-side as ListServices might not support filtering by service name directly
+            Optional<ServiceSummary> existingService = listResponse.services().stream()
+                    .filter(s -> s.name().equals(serviceName))
+                    .findFirst();
+
+            if (existingService.isPresent()) {
+                String serviceId = existingService.get().id();
+                logger.debug("Found existing service '{}' with ID: {}", serviceName, serviceId);
                 return serviceId;
             }
 
-            logger.info("Creating new service with name: {}", serviceName);
+            logger.info("Creating new service with name: {} in namespace: {}", serviceName, namespaceId);
             // Create new service if not found
             CreateServiceRequest createRequest = CreateServiceRequest.builder()
                     .name(serviceName)
-                    .description("Cache Service")
+                    .namespaceId(namespaceId) // Associate with the namespace
+                    .description("Service for " + serviceName)
                     .dnsConfig(DnsConfig.builder()
                             .dnsRecords(DnsRecord.builder()
-                                    .type("A")
+                                    .type(RecordType.A) // Use Enum RecordType.A
                                     .ttl(60L)
                                     .build())
+                            .routingPolicy(RoutingPolicy.WEIGHTED) // Example: Use WEIGHTED or MULTIVALUE
                             .build())
+                    // Add health check config if needed
+                    // .healthCheckCustomConfig(HealthCheckCustomConfig.builder().failureThreshold(1).build()) // Example for custom health
                     .build();
 
             CreateServiceResponse createResponse = serviceDiscoveryClient.createService(createRequest);
             String serviceId = createResponse.service().id();
-            logger.info("Created new service with ID: {}", serviceId);
+            logger.info("Created new service '{}' with ID: {}", serviceName, serviceId);
             return serviceId;
         } catch (Exception e) {
-            logger.error("Failed to find or create service", e);
-            throw new RuntimeException("Failed to find or create service", e);
+            logger.error("Failed to find or create service '{}'", serviceName, e);
+            throw new RuntimeException("Failed to find or create service: " + serviceName, e);
         }
     }
 
     @Scheduled(fixedRateString = "${cache.service.discovery.heartbeat-interval}")
     public void sendHeartbeat() {
         try {
-            logger.debug("Sending heartbeat for instance: {}", instanceId);
+            // Need serviceId to update health status
+            String namespaceId = findOrCreateNamespace(); // Ensure namespace exists
+            String serviceId = findOrCreateService(namespaceId); // Ensure service exists and get ID
+
+            logger.debug("Sending heartbeat for instance: {} in service: {}", instanceId, serviceId);
             // Send heartbeat to keep instance registered
+            // Note: UpdateInstanceCustomHealthStatus is used when HealthCheckCustomConfig is enabled for the service.
+            // If not using custom health checks, Cloud Map relies on the health of the underlying resource (e.g., ECS task).
+            // If the service uses custom health checks, this call is necessary.
             serviceDiscoveryClient.updateInstanceCustomHealthStatus(
                     UpdateInstanceCustomHealthStatusRequest.builder()
-                            .serviceId(findOrCreateService())
+                            .serviceId(serviceId)
                             .instanceId(instanceId)
                             .status(CustomHealthStatus.HEALTHY)
                             .build()
             );
             logger.debug("Heartbeat sent successfully for instance: {}", instanceId);
+        } catch (InstanceNotFoundException e) {
+            logger.warn("Instance {} not found during heartbeat, attempting re-registration.", instanceId, e);
+            // Instance might have been deregistered, try registering again
+            registerService();
+        } catch (ServiceNotFoundException e) {
+             logger.warn("Service not found during heartbeat for instance {}, attempting re-registration.", instanceId, e);
+             // Service might have been deleted, try registering again (which will recreate the service)
+             registerService();
         } catch (Exception e) {
+            // Catch broader exceptions to prevent scheduler termination
             logger.error("Failed to send heartbeat for instance: {}", instanceId, e);
         }
     }
