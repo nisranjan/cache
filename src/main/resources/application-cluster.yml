@@ -16,6 +16,10 @@ aws:
 server:
   port: 8080
 
+router:
+  virtual-nodes-per-server: 1
+  router-refresh-interval-seconds: 3000
+
 cache:
   capacity: 100
   service:

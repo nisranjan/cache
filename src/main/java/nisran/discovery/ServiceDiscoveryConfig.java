@@ -3,6 +3,7 @@ package nisran.discovery;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.web.client.RestTemplate;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.servicediscovery.ServiceDiscoveryClient;
@@ -31,4 +32,9 @@ public class ServiceDiscoveryConfig {
             .credentialsProvider(DefaultCredentialsProvider.create())
             .build();
     }
+
+    @Bean
+    public RestTemplate restTemplate() {
+         return new RestTemplate();
+     }
 } 

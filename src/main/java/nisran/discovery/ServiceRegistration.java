@@ -15,16 +15,31 @@ import software.amazon.awssdk.services.ecs.model.DescribeTasksRequest;
 import software.amazon.awssdk.services.ecs.model.DescribeTasksResponse;
 import software.amazon.awssdk.services.ecs.model.Task;
 
-import java.net.InetAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+    
+import nisran.ServerInstance;
+import nisran.router.ServiceDiscoveryOperations; // Added import
+
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.io.IOException;
+import jakarta.annotation.PostConstruct;
 
 @Configuration
 @EnableScheduling
 @Profile("cluster")
-public class ServiceRegistration {
+public class ServiceRegistration implements ServiceDiscoveryOperations{
 
     private static final Logger logger = LoggerFactory.getLogger(ServiceRegistration.class);
 
@@ -42,26 +57,168 @@ public class ServiceRegistration {
 
     private final ServiceDiscoveryClient serviceDiscoveryClient;
     private final EcsClient ecsClient;
-    private String instanceId;
-    private String privateIp;
+    private ServerInstance serverInstance;
+    private String localTaskArn; // The ID used for CloudMap registration, typically the task ARN.
+    private String ip;
 
-    public ServiceRegistration(ServiceDiscoveryClient serviceDiscoveryClient, EcsClient ecsClient) {
+    private final HttpClient httpClient; // For metadata endpoint calls
+    private final ObjectMapper objectMapper; // For parsing metadata JSON
+
+    public ServiceRegistration(ServiceDiscoveryClient serviceDiscoveryClient, EcsClient ecsClient, ObjectMapper objectMapper) {
         this.serviceDiscoveryClient = serviceDiscoveryClient;
         this.ecsClient = ecsClient;
-        this.instanceId = UUID.randomUUID().toString();
-        this.privateIp = getPrivateIp();
-        logger.debug("Initialized ServiceRegistration with instanceId: {}, privateIp: {}", instanceId, privateIp);
+        this.objectMapper = objectMapper;
+        this.httpClient = HttpClient.newHttpClient(); // Or use a shared instance if managed by Spring
+
+        // getInstance is called in @PostConstruct to ensure @Value fields are set
+        // this.serverInstance = getInstance();
+        // this.localTaskArn = this.serverInstance.getTaskId();
+        // this.ip = this.serverInstance.getIpAddress();
+        // logger.debug("Initialized ServiceRegistration with localTaskArn: {}, privateIp: {}", localTaskArn, ip);
     }
 
+    // Simple static inner class or record (if Java 14+) to hold metadata
+    private static class EcsTaskMetadata {
+        final String taskArn;
+        final String clusterArn; // The metadata endpoint provides the cluster ARN
+
+        EcsTaskMetadata(String taskArn, String clusterArn) {
+            this.taskArn = taskArn;
+            this.clusterArn = clusterArn;
+        }
+    }
+
+
+    private ServerInstance getInstance(){
+        // This method should be called after @Value fields are injected.
+        // It attempts to get the local instance details (Task ARN, IP).
+
+        String localTaskArn = null;
+        int maxRetries = 5;
+        long delayMillis = 1000;
+        String clusterArnFromMetadata = null;
+
+        for (int i = 0; i < maxRetries; i++) {
+            localTaskArn = System.getenv("ECS_TASK_ARN");
+            String clusterEnv = System.getenv("ECS_CLUSTER"); // Check env var for cluster too
+
+            if (localTaskArn != null && clusterEnv != null) {
+                logger.debug("Found ECS_TASK_ARN from environment variable: {}", localTaskArn);
+                logger.debug("Found ECS_CLUSTER from environment variable: {}", clusterEnv);
+                clusterArnFromMetadata = clusterEnv; // Use env var if both are present
+                break;
+            }else{
+                // If ECS_TASK_ARN env var is not set, try the metadata endpoint (more reliable for Fargate)
+                EcsTaskMetadata metadata = getLocalTaskAndClusterMetadata();
+                if (metadata != null && metadata.taskArn != null && metadata.clusterArn != null) {
+                    localTaskArn = metadata.taskArn;
+                    clusterArnFromMetadata = metadata.clusterArn;
+                    logger.debug("Found ECS_TASK_ARN from metadata endpoint: {}", localTaskArn);
+                    logger.debug("Found ECS_CLUSTER from metadata endpoint: {}", clusterArnFromMetadata);
+                    break; // Found it from metadata, no need to retry env var
+                }
+                logger.info("Local Task ARN not yet set (from env or metadata). Retrying in {} ms...", delayMillis);
+                try{
+                    TimeUnit.MILLISECONDS.sleep(delayMillis);
+                }catch(InterruptedException e){
+                    Thread.currentThread().interrupt();
+                }
+                delayMillis *= 2; // Exponential Backoff
+            }
+        }
+
+        if(localTaskArn == null){
+            logger.warn("ECS_TASK_ARN environment variable not found.");
+            return null;
+        }
+
+         
+        if (clusterArnFromMetadata == null) {
+            logger.warn("ECS_CLUSTER could not be determined from environment variables or metadata endpoint.");
+            return null;
+        }
+
+        DescribeTasksRequest describeTasksRequest = DescribeTasksRequest.builder()
+                .cluster(clusterArnFromMetadata) // Use the determined cluster ARN/name
+                .tasks(localTaskArn)
+                .build();
+
+        DescribeTasksResponse describeTasksResponse = ecsClient.describeTasks(describeTasksRequest);
+        if (!describeTasksResponse.tasks().isEmpty()) {
+            Task task = describeTasksResponse.tasks().get(0);
+            
+            // Now you can access details from the 'task' object
+            // For example, to get the private IP:
+            String ip = task.attachments().stream()
+            .filter(att -> att.type().equals("ElasticNetworkInterface"))
+            .findFirst()
+            .map(att -> att.details().stream()
+                .filter(det -> det.name().equals("privateIPv4Address"))
+                .findFirst()
+                .map(det -> det.value())
+                .orElse(null))
+            .orElse(null);
+            if (ip != null) {
+                logger.debug("Retrieved private IP from ECS task metadata: {}", ip);
+                return new ServerInstance(localTaskArn, ip, port);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Fetches the ECS Task ARN by querying the ECS container metadata endpoint (v4).
+     * This is the recommended way to get task and cluster metadata in Fargate.
+     * Requires the ECS_CONTAINER_METADATA_URI_V4 environment variable to be set.
+     * @return An EcsTaskMetadata object containing Task ARN and Cluster ARN, or null if not found.
+     */
+    private EcsTaskMetadata getLocalTaskAndClusterMetadata() {
+        String metadataUri = System.getenv("ECS_CONTAINER_METADATA_URI_V4");
+        if (metadataUri == null || metadataUri.trim().isEmpty()) {
+            logger.debug("ECS_CONTAINER_METADATA_URI_V4 environment variable not found.");
+            return null;
+        }
+
+        String taskMetadataUrl = metadataUri + "/task";
+        logger.debug("Attempting to fetch Task and Cluster ARN from metadata endpoint: {}", taskMetadataUrl);
+
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(taskMetadataUrl))
+                    .header("Accept", "application/json")
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                JsonNode root = objectMapper.readTree(response.body());
+                String taskArn = root.path("TaskARN").asText(null);
+                String clusterArn = root.path("Cluster").asText(null); // The 'Cluster' field usually contains the cluster ARN
+                if (taskArn != null && clusterArn != null) {
+                    logger.debug("Found ECS_TASK_ARN : {} and ECS_CLUSTER : {} from metadata endpoint", taskArn,clusterArn);
+                    return new EcsTaskMetadata(taskArn, clusterArn);
+                } else {
+                    logger.warn("TaskARN and/or Cluster field not found in metadata response from {}. Response body: {}", taskMetadataUrl, response.body());
+                }
+            } else {
+                logger.warn("Failed to fetch task metadata from {}. Status code: {}. Response body: {}", taskMetadataUrl, response.statusCode(), response.body());
+            }
+        } catch (IOException | InterruptedException e) {
+            logger.error("Error fetching task metadata from {}", taskMetadataUrl, e);
+        }
+        return null; // Return null on error or if ARN not found
+    }
+
+    /*
     private String getPrivateIp() {
         try {
             // Try to get private IP from ECS task metadata
-            String taskArn = System.getenv("ECS_TASK_ARN");
-            if (taskArn != null) {
-                logger.debug("Found ECS_TASK_ARN: {}", taskArn);
+            if (localTaskArn != null) {
+                logger.debug("Found ECS_TASK_ARN: {}", localTaskArn);
                 DescribeTasksRequest request = DescribeTasksRequest.builder()
                     .cluster(System.getenv("ECS_CLUSTER"))
-                    .tasks(taskArn)
+                    .tasks(localTaskArn)
                     .build();
 
                 DescribeTasksResponse response = ecsClient.describeTasks(request);
@@ -91,8 +248,22 @@ public class ServiceRegistration {
             logger.error("Failed to get private IP", e);
             throw new RuntimeException("Failed to get private IP", e);
         }
-    }
+    } */
 
+    @PostConstruct
+    public void initialize() {
+        logger.debug("ServiceRegistration @PostConstruct called.");
+        // Initialize serverInstance and registrationId after @Value fields are set
+        this.serverInstance = getInstance();
+        if (this.serverInstance == null) {
+            logger.error("Failed to determine local server instance details during initialization. ServiceRegistration cannot proceed in cluster mode.");
+            throw new IllegalStateException("Failed to initialize ServiceRegistration: Local instance details (IP, Task ARN) could not be determined. Ensure ECS_TASK_ARN and ECS_CLUSTER are available when running with 'cluster' profile.");
+        }
+        this.localTaskArn = this.serverInstance.getTaskId(); // Use the task ARN as the unique registration ID
+        this.ip = this.serverInstance.getIpAddress(); // IP is also needed for registration attributes
+        logger.info("ServiceRegistration initialized for instance ID: {}, privateIp: {}", localTaskArn, ip);
+    }
+    
     @Bean
     public void registerService() {
         try {
@@ -105,12 +276,12 @@ public class ServiceRegistration {
 
             // Build attributes map safely, handling potential nulls from environment variables
             Map<String, String> attributes = new HashMap<>();
-            attributes.put("AWS_INSTANCE_IPV4", privateIp); // privateIp should be non-null due to constructor logic
+            attributes.put("AWS_INSTANCE_IPV4",ip ); // privateIp should be non-null due to constructor logic
             attributes.put("AWS_INSTANCE_PORT", String.valueOf(port));
 
-            String taskArn = System.getenv("ECS_TASK_ARN");
-            if (taskArn != null) {
-                attributes.put("ECS_TASK_ARN", taskArn);
+            // Use the task ARN from the serverInstance object
+            if (this.serverInstance != null && this.serverInstance.getTaskId() != null) {
+                attributes.put("ECS_TASK_ARN", this.serverInstance.getTaskId());
             }
             String clusterName = System.getenv("ECS_CLUSTER");
             if (clusterName != null) {
@@ -120,17 +291,17 @@ public class ServiceRegistration {
             // Register instance
             RegisterInstanceRequest request = RegisterInstanceRequest.builder()
                     .serviceId(serviceId)
-                    .instanceId(instanceId)
+                    .instanceId(this.localTaskArn) // Use the task ARN for CloudMap instanceId
                     .attributes(attributes) // Use the safely built map
                     .build();
 
             serviceDiscoveryClient.registerInstance(request);
-            logger.info("Successfully registered service instance with ID: {}", instanceId);
+            logger.info("Successfully registered service instance with ID: {}", this.localTaskArn);
         } catch (Exception e) {
             logger.error("Failed to register service", e);
             throw new RuntimeException("Failed to register service", e);
         }
-    }
+    } 
 
     private String findOrCreateNamespace(){
         try {
@@ -240,7 +411,7 @@ public class ServiceRegistration {
             String namespaceId = findOrCreateNamespace(); // Ensure namespace exists
             String serviceId = findOrCreateService(namespaceId); // Ensure service exists and get ID
 
-            logger.debug("Sending heartbeat for instance: {} in service: {}", instanceId, serviceId);
+            logger.debug("Sending heartbeat for instance: {} in service: {}", localTaskArn, serviceId);
             // Send heartbeat to keep instance registered
             // Note: UpdateInstanceCustomHealthStatus is used when HealthCheckCustomConfig is enabled for the service.
             // If not using custom health checks, Cloud Map relies on the health of the underlying resource (e.g., ECS task).
@@ -248,22 +419,80 @@ public class ServiceRegistration {
             serviceDiscoveryClient.updateInstanceCustomHealthStatus(
                     UpdateInstanceCustomHealthStatusRequest.builder()
                             .serviceId(serviceId)
-                            .instanceId(instanceId)
+                            .instanceId(localTaskArn)
                             .status(CustomHealthStatus.HEALTHY)
                             .build()
             );
-            logger.debug("Heartbeat sent successfully for instance: {}", instanceId);
+            logger.debug("Heartbeat sent successfully for instance: {}", localTaskArn);
         } catch (InstanceNotFoundException e) {
-            logger.warn("Instance {} not found during heartbeat, attempting re-registration.", instanceId, e);
+            logger.warn("Instance {} not found during heartbeat, attempting re-registration.", localTaskArn, e);
             // Instance might have been deregistered, try registering again
             registerService();
         } catch (ServiceNotFoundException e) {
-             logger.warn("Service not found during heartbeat for instance {}, attempting re-registration.", instanceId, e);
+             logger.warn("Service not found during heartbeat for instance {}, attempting re-registration.", localTaskArn, e);
              // Service might have been deleted, try registering again (which will recreate the service)
              registerService();
         } catch (Exception e) {
             // Catch broader exceptions to prevent scheduler termination
-            logger.error("Failed to send heartbeat for instance: {}", instanceId, e);
+            logger.error("Failed to send heartbeat for instance: {}", localTaskArn, e);
         }
+    }
+
+    // Implementation of ServiceDiscoveryOperations
+
+    // @Override // Uncomment if ServiceRegistration directly implements ServiceDiscoveryOperations
+    public List<ServerInstance> discoverInstances() {
+        logger.debug("Discovering instances for service: {} in namespace: {}", serviceName, namespaceName);
+        try {
+            DiscoverInstancesRequest request = DiscoverInstancesRequest.builder()
+                    .namespaceName(namespaceName)
+                    .serviceName(serviceName)
+                    .maxResults(100) // Adjust as needed
+                    .healthStatus(HealthStatusFilter.HEALTHY) // Discover only healthy instances
+                    .build();
+
+            DiscoverInstancesResponse response = serviceDiscoveryClient.discoverInstances(request);
+            return response.instances().stream()
+                    .map(httpInstanceSummary -> {
+                        Map<String, String> attributes = httpInstanceSummary.attributes();
+                        String ip = attributes.get("AWS_INSTANCE_IPV4");
+                        String portStr = attributes.get("AWS_INSTANCE_PORT");
+                        // Prefer ECS_TASK_ARN as taskId if available, otherwise use CloudMap's instanceId
+                        String taskId = attributes.getOrDefault("ECS_TASK_ARN", httpInstanceSummary.instanceId());
+
+                        if (ip != null && portStr != null && taskId != null) {
+                            try {
+                                int discoveredPort = Integer.parseInt(portStr);
+                                return new ServerInstance(taskId, ip, discoveredPort);
+                            } catch (NumberFormatException e) {
+                                logger.warn("Failed to parse port for instance {}: {}. Attributes: {}", taskId, portStr, attributes, e);
+                                return null;
+                            }
+                        }
+                        logger.warn("Instance {} (CloudMap ID: {}) missing required attributes (IP, Port, or determined TaskId). Attributes: {}",
+                                taskId, httpInstanceSummary.instanceId(), attributes);
+                        return null;
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.error("Failed to discover instances for service {} in namespace {}", serviceName, namespaceName, e);
+            return Collections.emptyList(); // Return empty list on error
+        }
+    }
+
+    // @Override // Uncomment if ServiceRegistration directly implements ServiceDiscoveryOperations
+    public int getActiveServerCount() {
+        return discoverInstances().size();
+    }
+
+    // @Override // Uncomment if ServiceRegistration directly implements ServiceDiscoveryOperations
+    public String getTaskForLocalServer() {
+        // Return the Task ARN stored in the serverInstance field, which is populated by getInstance().
+        if (this.serverInstance != null) {
+            return this.serverInstance.getTaskId(); // TaskId is the ARN obtained in getInstance
+        }
+        logger.warn("getTaskForLocalServer() called but local serverInstance is null. This indicates an initialization issue.");
+        return null;
     }
 } 
