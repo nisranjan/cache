@@ -6,7 +6,9 @@ import org.springframework.beans.factory.annotation.Value; // Added import
 import org.springframework.stereotype.Component; // Added import
 
 import nisran.ServerInstance;
+import nisran.discovery.ServiceDiscoveryOperations;
 
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Profile; // Added import
 
 import java.nio.charset.StandardCharsets;
@@ -23,7 +25,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-@Component // Make CacheRouter a Spring-managed bean
+@Component("cacheRouter") // Make CacheRouter a Spring-managed bean
+@DependsOn("registerService") // Ensure serviceDiscoveryOperations is initialized before CacheRoute
 @Profile("cluster") // Activate this bean only when 'cluster' profile is active
 public class CacheRouter implements RouterService{
 

@@ -1,6 +1,6 @@
 package nisran.cache;
 
-
+@Deprecated
 public class LRUCacheNode<V extends Object> {
 	
 	/* Key Value Store */

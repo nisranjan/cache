@@ -2,12 +2,12 @@ package nisran.discovery;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
 import software.amazon.awssdk.services.servicediscovery.ServiceDiscoveryClient;
 import software.amazon.awssdk.services.servicediscovery.model.*;
 import software.amazon.awssdk.services.ecs.EcsClient;
@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
     
 import nisran.ServerInstance;
-import nisran.router.ServiceDiscoveryOperations; // Added import
+import nisran.config.AWS_SDKConfig;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,29 +35,24 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.io.IOException;
-import jakarta.annotation.PostConstruct;
 
-@Configuration
+
+@Component
 @EnableScheduling
 @Profile("cluster")
 public class ServiceRegistration implements ServiceDiscoveryOperations{
 
     private static final Logger logger = LoggerFactory.getLogger(ServiceRegistration.class);
 
-    @Value("${spring.application.name}")
-    private String serviceName;
-
-    @Value("${server.port}")
-    private int port;
-
-    @Value("${aws.servicediscovery.namespace.name}")
-    private String namespaceName;
-
-    @Value("${aws.servicediscovery.namespace.vpc-id}")
-    private String vpcId; // Required for creating Private DNS namespaces
-
+    
     private final ServiceDiscoveryClient serviceDiscoveryClient;
     private final EcsClient ecsClient;
+
+    private String serviceName; // Will be injected from AWS_SDKConfig
+    private int port; // Will be injected from AWS_SDKConfig
+    private String namespaceName; // Will be injected from AWS_SDKConfig    
+    private String vpcId; // Will be injected from AWS_SDKConfig    
+
     private ServerInstance serverInstance;
     private String localTaskArn; // The ID used for CloudMap registration, typically the task ARN.
     private String taskId; // The ID used for CloudMap registration
@@ -66,11 +61,21 @@ public class ServiceRegistration implements ServiceDiscoveryOperations{
     private final HttpClient httpClient; // For metadata endpoint calls
     private final ObjectMapper objectMapper; // For parsing metadata JSON
 
-    public ServiceRegistration(ServiceDiscoveryClient serviceDiscoveryClient, EcsClient ecsClient, ObjectMapper objectMapper) {
+    public ServiceRegistration(ServiceDiscoveryClient serviceDiscoveryClient, EcsClient ecsClient, ObjectMapper objectMapper, AWS_SDKConfig awsConfig) {
         this.serviceDiscoveryClient = serviceDiscoveryClient;
         this.ecsClient = ecsClient;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newHttpClient(); // Or use a shared instance if managed by Spring
+
+        // Initialize values from AWS_SDKConfig
+        this.serviceName = awsConfig.getServiceName();
+        this.port = awsConfig.getPort();
+        this.namespaceName = awsConfig.getNamespaceName();
+        this.vpcId = awsConfig.getVpcId(); // Required for creating Private DNS namespaces
+
+        initialize();
+        logger.debug("ServiceRegistration initialized with serviceName: {}, port: {}, namespaceName: {}", 
+                     serviceName, port, namespaceName);
     }
 
 
@@ -249,7 +254,7 @@ public class ServiceRegistration implements ServiceDiscoveryOperations{
         }
     } */
 
-    @PostConstruct
+    //@PostConstruct
     public void initialize() {
         logger.debug("ServiceRegistration @PostConstruct called.");
         // Initialize serverInstance and registrationId after @Value fields are set
@@ -260,10 +265,10 @@ public class ServiceRegistration implements ServiceDiscoveryOperations{
         }
         this.localTaskArn = this.serverInstance.getTaskId(); // Use the task ARN as the unique registration ID
         this.ip = this.serverInstance.getIpAddress(); // IP is also needed for registration attributes
-        logger.info("ServiceRegistration initialized for instance ID: {}, privateIp: {}", localTaskArn, ip);
+        //logger.info("ServiceRegistration initialized for instance ID: {}, privateIp: {}", localTaskArn, ip);
     }
     
-    @Bean
+    @Bean("registerService")
     public void registerService() {
         try {
             logger.info("Starting service registration for service: {}", serviceName);
@@ -494,4 +499,4 @@ public class ServiceRegistration implements ServiceDiscoveryOperations{
         logger.warn("getTaskForLocalServer() called but local serverInstance is null. This indicates an initialization issue.");
         return null;
     }
-} 
+}

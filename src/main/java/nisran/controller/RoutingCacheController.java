@@ -2,8 +2,8 @@ package nisran.controller;
 
 import nisran.ServerInstance;
 import nisran.cache.LRUCache;
+import nisran.discovery.ServiceDiscoveryOperations;
 import nisran.router.CacheRouter;
-import nisran.router.ServiceDiscoveryOperations;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
