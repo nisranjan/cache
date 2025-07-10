@@ -1,12 +1,14 @@
 package nisran.config;
 
+import java.net.http.HttpClient;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.client.RestTemplate;
 
 import nisran.cache.LRUCache;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.ContainerCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.servicediscovery.ServiceDiscoveryClient;
 import software.amazon.awssdk.services.ecs.EcsClient;
@@ -27,8 +29,8 @@ public class ServiceDiscoveryConfig {
     public ServiceDiscoveryClient serviceDiscoveryClient() {
         ServiceDiscoveryClientBuilder builder = ServiceDiscoveryClient.builder();
         return builder
-            .region(Region.AP_SOUTH_1)
-            .credentialsProvider(DefaultCredentialsProvider.create())
+            .region(Region.AP_SOUTH_1) //TODO: modify region as per awsSdkConfig
+            .credentialsProvider(ContainerCredentialsProvider.builder().build())
             .build();
     }
 
@@ -37,7 +39,7 @@ public class ServiceDiscoveryConfig {
         EcsClientBuilder builder = EcsClient.builder();
         return builder
             .region(Region.AP_SOUTH_1)
-            .credentialsProvider(DefaultCredentialsProvider.create())
+            .credentialsProvider(ContainerCredentialsProvider.builder().build())
             .build();
     }
 
@@ -50,4 +52,9 @@ public class ServiceDiscoveryConfig {
     public RestTemplate restTemplate() {
          return new RestTemplate();
     }
-} 
+
+    @Bean
+    public HttpClient httpClient() {
+        return HttpClient.newHttpClient();
+    }   
+}

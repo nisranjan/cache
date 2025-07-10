@@ -1,4 +1,4 @@
-#Response to create cluster command
+
 {
     "cluster": {
         "clusterArn": "arn:aws:ecs:ap-south-1:453136820892:cluster/cache-cluster",
@@ -20,8 +20,6 @@
         "defaultCapacityProviderStrategy": []
     }
 }
-
-#Response to ecs-register task command
 {
     "taskDefinition": {
         "taskDefinitionArn": "arn:aws:ecs:ap-south-1:453136820892:task-definition/cache-app:1",
@@ -79,7 +77,7 @@
     }
 }
 
-#Response to Security Group creation command
+
 {
     "GroupId": "sg-03df1f30f3ce079a3",
     "SecurityGroupArn": "arn:aws:ec2:ap-south-1:453136820892:security-group/sg-03df1f30f3ce079a3"

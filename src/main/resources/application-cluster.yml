@@ -1,6 +1,6 @@
 spring:
   application:
-    name: cache-cluster-service
+    name: cache.svc
   cloud:
     aws:
       region:
@@ -10,7 +10,7 @@ spring:
 aws:
   servicediscovery:
     namespace:
-      name: cache-service-internal:local
+      name: nisran.local
       vpc-id: vpc-0503be314e240016e
 
 server:
@@ -25,11 +25,12 @@ cache:
   service:
     discovery:
       enabled: true
-      heartbeat-interval: 30000
+      heartbeat-interval: 300000
       deregister-interval: 100000
 
 logging:
   level:
     root: INFO
-    nisran: DEBUG
-    software.amazon.awssdk: DEBUG 
+    nisran.router: DEBUG
+    nisran.controller: DEBUG
+    software.amazon.awssdk: INFO

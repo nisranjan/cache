@@ -26,6 +26,24 @@
                 "logs:PutLogEvents"
             ],
             "Resource": "arn:aws:logs:ap-south-1:453136820892:log-group:/ecs/cache-service:*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:CreateHostedZone"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "servicediscovery:*",
+                "route53:ChangeResourceRecordSets",
+                "route53:GetHostedZone",
+                "route53:ListResourceRecordSets",
+                "route53:GetChange"
+            ],
+            "Resource": "*"
         }
     ]
 } 

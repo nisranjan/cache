@@ -1,10 +1,21 @@
-package nisran.discovery;
+package nisran.config;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+
+import nisran.cache.LRUCache;
 
 @Configuration
 @Profile("single-server")
 public class SingleServerConfig {
-    // No service discovery configuration needed for single server mode
+    
+    @Value("${cache.capacity:100}")
+    private int cacheCapacity;
+    
+    @Bean
+    public LRUCache<String, Object> lruCache() {
+        return new LRUCache<>(cacheCapacity);
+    }
 } 

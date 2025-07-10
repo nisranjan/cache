@@ -2,11 +2,16 @@ package nisran.router;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value; // Added import
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component; // Added import
 
+import jakarta.annotation.PostConstruct;
 import nisran.ServerInstance;
-import nisran.discovery.ServiceDiscoveryOperations;
+import nisran.config.AWS_SDKConfig;
+import software.amazon.awssdk.services.servicediscovery.ServiceDiscoveryClient;
+import software.amazon.awssdk.services.servicediscovery.model.DiscoverInstancesRequest;
+import software.amazon.awssdk.services.servicediscovery.model.DiscoverInstancesResponse;
+import software.amazon.awssdk.services.servicediscovery.model.HealthStatusFilter;
 
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Profile; // Added import
@@ -17,6 +22,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,53 +32,37 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Component("cacheRouter") // Make CacheRouter a Spring-managed bean
-@DependsOn("registerService") // Ensure serviceDiscoveryOperations is initialized before CacheRoute
+@DependsOn("serviceRegistration") // Ensure serviceDiscoveryOperations is initialized before CacheRoute
 @Profile("cluster") // Activate this bean only when 'cluster' profile is active
-public class CacheRouter implements RouterService{
+public class CacheRouter implements CHRoutingService{
 
     private static final Logger logger = LoggerFactory.getLogger(CacheRouter.class);
     private static final String HASH_ALGORITHM = "MD5";
 
-    @Value("${router.virtual-nodes-per-server}")
-    private int virtualNodesPerServer;
+    private final ServiceDiscoveryClient awsSDKClient; // Added for AWS Service Discovery
+    private final AWS_SDKConfig awsSDKConfig; // Added for AWS SDK configuration
 
-    @Value("${router.router-refresh-interval-seconds}")
-    private long discoveryIntervalSeconds;
-
-    private final ServiceDiscoveryOperations serviceDiscovery;
     private  String localNodeIdentifier;
+    private int virtualNodes; // Default to 1 if not specified, can be set via AWS_SDKConfig
 
     // Maintains a map of taskId to its full node identifier (ip:port)
-    private final ConcurrentHashMap<String, String> taskToServerNodeIdentifierMap;
-    private volatile SortedMap<Integer, String> consistentHashRing; // hash -> nodeIdentifier (ip:port)
-    private volatile List<ServerInstance> currentServerInstancesForRingBuilding; // Stores instances for buildConsistentHashRing
+    private final ConcurrentHashMap<String, String> svrDictionary;
+    private volatile SortedMap<Integer, ServerInstance> consistentHashRing; // hash -> nodeIdentifier (ip:port)
+    private volatile List<ServerInstance> currentServerInstances; // Stores instances for buildConsistentHashRing
 
     private final MessageDigest md5Digest;
     private final ScheduledExecutorService discoveryScheduler;
 
-    public CacheRouter(ServiceDiscoveryOperations serviceDiscovery) {  // Typically injected via @Value in Spring
-        if (serviceDiscovery == null) {
-            throw new IllegalArgumentException("ServiceDiscoveryOperations cannot be null.");
-        }
-        if (virtualNodesPerServer <= 0) {
-            virtualNodesPerServer = 1;
-            //throw new IllegalArgumentException("Number of virtual nodes per server must be positive.");
-        }
-
-        this.serviceDiscovery = serviceDiscovery;
-
-        //this.virtualNodesPerServer = virtualNodesPerServer;
-        //this.discoveryIntervalSeconds = discoveryIntervalSeconds;
+    public CacheRouter(ServiceDiscoveryClient awsClient, AWS_SDKConfig config) {  // Typically injected via @Value in Spring
         
- 
-        /* 
-        if (this.discoveryIntervalSeconds <= 0) {
-            throw new IllegalArgumentException("Discovery interval must be positive.");
-        }*/
+        this.virtualNodes = config.getVirtualNodes(); // Get virtual nodes from configuration
 
-        this.taskToServerNodeIdentifierMap = new ConcurrentHashMap<>();
+        this.awsSDKClient = awsClient; // Use AWS Service Discovery client
+        this.awsSDKConfig = config; // Use AWS SDK configuration
+
+        this.svrDictionary = new ConcurrentHashMap<>();
         this.consistentHashRing = Collections.unmodifiableSortedMap(new TreeMap<>()); // Initial empty, immutable ring
-        this.currentServerInstancesForRingBuilding = Collections.emptyList();
+        this.currentServerInstances = Collections.emptyList();
 
         try {
             this.md5Digest = MessageDigest.getInstance(HASH_ALGORITHM);
@@ -82,47 +72,46 @@ public class CacheRouter implements RouterService{
         }
 
         // Initial discovery and ring setup
-        createOrUpdateServerDictionary();
+        createOrUpdateServerDictionary(currentServerInstances);
         buildConsistentHashRing();
 
-        //TODO: fix this code
-        //Now get the localNodeidentifier
-        String tempLocalNodeIdentifier = null; // Use a temporary variable
-        if(!taskToServerNodeIdentifierMap.isEmpty()){
-            String localTaskKey = serviceDiscovery.getTaskForLocalServer();
-            logger.debug("getTaskForLocalServer() returned: {}", localTaskKey);
-            if (localTaskKey != null) {
-                tempLocalNodeIdentifier = taskToServerNodeIdentifierMap.get(localTaskKey);
-            } else {
-                logger.warn("getTaskForLocalServer() returned null. Cannot determine local node identifier.");
-            }
-        }
-        this.localNodeIdentifier = tempLocalNodeIdentifier; // Assign to the final field
-
-        if(this.localNodeIdentifier == null){
-            logger.error("localNodeIdentifier could not be determined and is NULL. This instance cannot identify itself in the cluster. Task map: {}", taskToServerNodeIdentifierMap);
-            throw new RuntimeException("localNodeIdentifier is NULL. Check service discovery and task ID mapping for the local server.");
-        }
-
-        // Schedule periodic updates
         this.discoveryScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "CacheRouter-DiscoveryThread");
             t.setDaemon(true); // Allow JVM to exit if this is the only thread running
             return t;
         });
-        this.discoveryScheduler.scheduleAtFixedRate(() -> {
-            createOrUpdateServerDictionary();
-            buildConsistentHashRing();
-        }, this.discoveryIntervalSeconds, this.discoveryIntervalSeconds, TimeUnit.SECONDS);
-        logger.info("CacheRouter initialized. Server discovery scheduled every {} seconds with {} virtual nodes per server.", discoveryIntervalSeconds, this.virtualNodesPerServer);
+        
+        logger.info("CacheRouter initialized."+ 
+            "Server discovery scheduled every {} seconds with {} virtual nodes per server.", 
+            awsSDKConfig.getDiscoveryIntervalSeconds(), this.virtualNodes);
     }
 
+    @PostConstruct
+    private void scheduleUpdates() {
+        // This method is now handled in the constructor with a ScheduledExecutorService
+        // to periodically update the server dictionary and rebuild the consistent hash ring.
+        // Keeping this method for potential future use or overrides.
+        // Schedule periodic updates
+        
+        this.discoveryScheduler.scheduleAtFixedRate(() -> {
+            createOrUpdateServerDictionary(currentServerInstances);
+            buildConsistentHashRing();
+        }, awsSDKConfig.getDiscoveryIntervalSeconds(), 
+            awsSDKConfig.getDiscoveryIntervalSeconds(), 
+            TimeUnit.SECONDS);
+    }
+
+    /**
+     * Creates or updates the server dictionary by discovering active server instances.
+     * This method is synchronized to ensure thread safety when updating the internal state.
+     */
+
     @Override
-    public synchronized void createOrUpdateServerDictionary() {
+    public synchronized void createOrUpdateServerDictionary(List<ServerInstance> serverInstances) {
         logger.debug("Attempting to create or update server dictionary.");
         List<ServerInstance> currentInstances;
         try {
-            currentInstances = serviceDiscovery.discoverInstances();
+            currentInstances = discoverInstances();
         } catch (Exception e) {
             logger.error("Error during service discovery while updating dictionary. Old dictionary and instances retained.", e);
             // Do not clear currentServerInstancesForRingBuilding on discovery error,
@@ -130,25 +119,19 @@ public class CacheRouter implements RouterService{
             return;
         }
 
-        if (currentInstances == null) {
-            logger.warn("Service discovery returned null. Assuming no instances.");
-            currentInstances = Collections.emptyList();
-        }
+        this.currentServerInstances = currentInstances; // Update the current server instances
 
-        // Store for buildConsistentHashRing and for comparison
-        this.currentServerInstancesForRingBuilding = currentInstances;
-
-        Map<String, String> latestTaskToServerNodeMap = currentInstances.stream()
-                .filter(instance -> instance.getTaskId() != null && instance.getNodeIdentifier() != null)
-                .collect(Collectors.toMap(ServerInstance::getTaskId, ServerInstance::getNodeIdentifier, (oldValue, newValue) -> newValue)); // In case of duplicate taskIds, take the new one
+        Map<String, String> latestTaskToServerNodeMap = currentServerInstances.stream()
+                .filter(instance -> instance.getServiceId() != null && instance.getNodeIdentifier() != null)
+                .collect(Collectors.toMap(ServerInstance::getServiceId, ServerInstance::getNodeIdentifier, (oldValue, newValue) -> newValue)); // In case of duplicate taskIds, take the new one
 
         // Check if the set of active server nodes has changed
         // A more robust check would compare the actual node identifiers if task IDs could be reused by different IPs
-        if (!this.taskToServerNodeIdentifierMap.keySet().equals(latestTaskToServerNodeMap.keySet()) ||
-            !this.taskToServerNodeIdentifierMap.entrySet().stream().allMatch(entry -> latestTaskToServerNodeMap.getOrDefault(entry.getKey(), "").equals(entry.getValue()))) {
-            logger.info("Server dictionary changed. Old tasks: {}, New tasks: {}.", this.taskToServerNodeIdentifierMap.keySet(), latestTaskToServerNodeMap.keySet());
-            this.taskToServerNodeIdentifierMap.clear();
-            this.taskToServerNodeIdentifierMap.putAll(latestTaskToServerNodeMap);
+        if (!this.svrDictionary.keySet().equals(latestTaskToServerNodeMap.keySet()) ||
+            !this.svrDictionary.entrySet().stream().allMatch(entry -> latestTaskToServerNodeMap.getOrDefault(entry.getKey(), "").equals(entry.getValue()))) {
+            logger.info("Server dictionary changed. Old tasks: {}, New tasks: {}.", this.svrDictionary.keySet(), latestTaskToServerNodeMap.keySet());
+            this.svrDictionary.clear();
+            this.svrDictionary.putAll(latestTaskToServerNodeMap);
         } else {
             logger.debug("Server dictionary has not significantly changed.");
         }
@@ -157,7 +140,7 @@ public class CacheRouter implements RouterService{
     @Override
     public synchronized void buildConsistentHashRing() {
         logger.debug("Attempting to build consistent hash ring.");
-        List<ServerInstance> instancesToUse = this.currentServerInstancesForRingBuilding;
+        List<ServerInstance> instancesToUse = this.currentServerInstances;
 
         if (instancesToUse == null) { // Should not happen if createOrUpdateServerDictionary ran
             logger.warn("currentServerInstancesForRingBuilding is null. Using empty list for ring construction.");
@@ -173,25 +156,27 @@ public class CacheRouter implements RouterService{
     }
 
     private void doRebuildConsistentHashRing(List<ServerInstance> instances) {
-        SortedMap<Integer, String> newRing = new TreeMap<>();
+        SortedMap<Integer, ServerInstance> newRing = new TreeMap<>();
         for (ServerInstance instance : instances) {
+            //TODO : review this code
             String nodeIdentifier = instance.getNodeIdentifier(); // ip:port
             if (nodeIdentifier == null) {
                 logger.warn("Skipping instance with null node identifier: {}", instance);
                 continue;
             }
-            for (int i = 0; i < this.virtualNodesPerServer; i++) {
+            for (int i = 0; i < this.virtualNodes; i++) {
                 String virtualNodeName = nodeIdentifier + "-VN" + i;
                 int hash = calculateHash(virtualNodeName);
-                newRing.put(hash, nodeIdentifier);
+                newRing.put(hash, instance);
                 logger.trace("Added virtual node {} with hash {} for server {}", virtualNodeName, hash, nodeIdentifier);
             }
         }
         this.consistentHashRing = Collections.unmodifiableSortedMap(newRing); // Atomically update the ring to an immutable version
         // Use serviceDiscovery.getActiveServerCount() for a potentially more up-to-date count if instances list could be stale
         // or if getActiveServerCount() has more complex logic. For simplicity, instances.size() is fine here.
-        int activeServerCount = serviceDiscovery.getActiveServerCount(); // Example of using the new method
-        logger.info("Consistent hash ring rebuilt with {} total virtual nodes from {} physical instances (reported active: {}). Current tasks: {}", newRing.size(), instances.size(), activeServerCount, taskToServerNodeIdentifierMap.keySet());
+        int activeServerCount =  currentServerInstances.size();// Example of using the new method
+        logger.info("Consistent hash ring rebuilt with {} total virtual nodes from {} physical instances (reported active: {}). Current tasks: {}", 
+            newRing.size(), instances.size(), activeServerCount, svrDictionary.keySet());
 
         if (logger.isTraceEnabled()){
              logger.trace("Current ring state: {}", newRing);
@@ -204,8 +189,8 @@ public class CacheRouter implements RouterService{
      * @return The node identifier (e.g., "ip:port") of the server responsible for the key, or null if no servers are available.
      */
     @Override
-    public String getServerNodeForKey(String key) {
-        SortedMap<Integer, String> currentRing = this.consistentHashRing; // Use local reference for thread safety
+    public ServerInstance getServerInstanceForKey(String key) {
+        SortedMap<Integer, ServerInstance> currentRing = this.consistentHashRing; // Use local reference for thread safety
         if (currentRing.isEmpty()) {
             logger.warn("Consistent hash ring is empty. Cannot route key: {}", key);
             return null;
@@ -214,23 +199,23 @@ public class CacheRouter implements RouterService{
         int keyHash = calculateHash(key);
         logger.debug("Routing key '{}' with hash {}", key, keyHash);
 
-        SortedMap<Integer, String> tailMap = currentRing.tailMap(keyHash);
+        SortedMap<Integer, ServerInstance> tailMap = currentRing.tailMap(keyHash);
 
-        String nodeIdentifier;
+        ServerInstance svrInstance;
         if (tailMap.isEmpty()) {
             // If no such node, wrap around to the first node in the ring
-            nodeIdentifier = currentRing.get(currentRing.firstKey());
-            logger.debug("Key hash {} is beyond the last node, wrapping around to first node: {} (hash: {})", keyHash, nodeIdentifier, currentRing.firstKey());
+            svrInstance = currentRing.get(currentRing.firstKey());
+            logger.debug("Key hash {} is beyond the last node, wrapping around to first node: {} (hash: {})", keyHash, svrInstance, currentRing.firstKey());
         } else {
-            nodeIdentifier = tailMap.get(tailMap.firstKey());
-            logger.debug("Key hash {} mapped to node {} (hash: {})", keyHash, nodeIdentifier, tailMap.firstKey());
+            svrInstance = tailMap.get(tailMap.firstKey());
+            logger.debug("Key hash {} mapped to node {} (hash: {})", keyHash, svrInstance, tailMap.firstKey());
         }
-        return nodeIdentifier;
+        return svrInstance;
     }
 
     @Override
     public boolean isLocalServerNode(String key) {
-        String targetNodeIdentifier = getServerNodeForKey(key);
+        ServerInstance targetNodeIdentifier = getServerInstanceForKey(key);
         if (targetNodeIdentifier == null) {
             logger.warn("Cannot determine if key '{}' is local; no target node found.", key);
             return false; // Or throw an exception, depending on desired behavior
@@ -239,12 +224,31 @@ public class CacheRouter implements RouterService{
         logger.debug("Key '{}' maps to node {}. Local node is {}. Is local: {}", key, targetNodeIdentifier, this.localNodeIdentifier, isLocal);
         return isLocal;
     }
+
+    @Override
+    public void addServerInstance(ServerInstance serverInstance) {
+        // Will need to be implemented if dynamic addition of servers is required
+        // We will need to add logic to move keys from the old server to the new one
+        
+    }
+
+
+    @Override
+    public void rebalanceKeys() {
+        logger.info("Rebalancing keys across server instances.");
+        // This method can be used to redistribute keys if the ring changes significantly
+        // or if the number of active servers changes.
+        // For simplicity, we will just rebuild the ring, which will automatically rebalance keys.
+        //buildConsistentHashRing();
+    }  
+    
+
     /**
      * Returns a copy of the current mapping from task ID to server node identifier (ip:port).
      * @return A map of task IDs to their corresponding node identifiers.
      */
     public Map<String, String> getTaskToServerNodeMap() {
-        return new ConcurrentHashMap<>(this.taskToServerNodeIdentifierMap);
+        return new ConcurrentHashMap<>(this.svrDictionary);
     }
 
     private int calculateHash(String input) {
@@ -276,4 +280,74 @@ public class CacheRouter implements RouterService{
         }
         logger.info("CacheRouter discovery scheduler shut down.");
     }
+
+    // @Override // Uncomment if ServiceRegistration directly implements ServiceDiscoveryOperations
+    public List<ServerInstance> discoverInstances() {
+
+        String serviceName = awsSDKConfig.getServiceName();
+        String namespaceName = awsSDKConfig.getNamespaceName();
+
+        logger.debug("Discovering instances for service: {} in namespace: {}", serviceName, namespaceName);
+        try {
+            DiscoverInstancesRequest request = DiscoverInstancesRequest.builder()
+                    .namespaceName(namespaceName)
+                    .serviceName(serviceName)
+                    .maxResults(100) // Adjust as needed
+                    .healthStatus(HealthStatusFilter.HEALTHY) // Discover only healthy instances
+                    .build();
+
+            DiscoverInstancesResponse response = awsSDKClient.discoverInstances(request);
+            return response.instances().stream()
+                    .map(httpInstanceSummary -> {
+                        Map<String, String> attributes = httpInstanceSummary.attributes();
+                        String ip = attributes.get("AWS_INSTANCE_IPV4");
+                        String portStr = attributes.get("AWS_INSTANCE_PORT");
+                        // Prefer ECS_TASK_ARN as serviceId if available, otherwise use CloudMap's instanceId
+                        String awsTaskARN = attributes.getOrDefault("ECS_TASK_ARN", httpInstanceSummary.instanceId());
+
+                        String instanceId = awsTaskARN.substring(awsTaskARN.lastIndexOf("/") + 1);
+                        //TODO: Add logic to convert task ARN to a serviceId if needed
+                        if (ip != null && portStr != null && instanceId != null) {
+                            try {
+                                int discoveredPort = Integer.parseInt(portStr);
+                                return new ServerInstance(instanceId, ip, discoveredPort);
+                            } catch (NumberFormatException e) {
+                                logger.warn("Failed to parse port for instance {}: {}. Attributes: {}", instanceId, portStr, attributes, e);
+                                return null;
+                            }
+                        }
+                        logger.warn("Instance {} (CloudMap ID: {}) missing required attributes (IP, Port, or determined serviceId). Attributes: {}",
+                                instanceId, httpInstanceSummary.instanceId(), attributes);
+                        return null;
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.error("Failed to discover instances for service {} in namespace {}", serviceName, namespaceName, e);
+            return Collections.emptyList(); // Return empty list on error
+        }
+    }
+
+    @Override
+    public int getActiveServerCount(){
+        int result = 0;
+
+        if(!currentServerInstances.isEmpty()){
+            result = currentServerInstances.size();
+        }
+
+        return result;
+    }
+
+
+    // @Override // Uncomment if ServiceRegistration directly implements ServiceDiscoveryOperations
+    /* 
+    public String getTaskForLocalServer() {
+        // Return the Task ARN stored in the serverInstance field, which is populated by getInstance().
+        if (this.serverInstance != null) {
+            return this.serverInstance.getServiceId(); // serviceId is the ARN obtained in getInstance
+        }
+        logger.warn("getTaskForLocalServer() called but local serverInstance is null. This indicates an initialization issue.");
+        return null;
+    }*/
 }
