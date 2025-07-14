@@ -57,15 +57,14 @@ public class ServiceRegistration{
     private String vpcId; // Will be injected from AWS_SDKConfig    
 
     private String serviceName; // Will be injected from AWS_SDKConfig
-    @Getter
     private String serviceId; // The ID used for CloudMap registration
     @Getter
     private String ip;
-    @Getter
     private int port; // Will be injected from AWS_SDKConfig
 
     private String awsTaskARN; // The ID used for CloudMap registration, typically the task ARN.
     private String awsClusterARN;
+    @Getter
     private String awsTaskId; 
 
     private boolean isRegistered; // Flag to track registration status

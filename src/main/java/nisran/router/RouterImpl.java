@@ -93,10 +93,11 @@ public class RouterImpl implements CHRoutingService, QuorumRWService {
         return null; // Placeholder return statement
     }
     @Override
-    public void quorumWrite(String key, Object value) {
+    public List<String> quorumWrite(String key, Object value) {
         // Implementation for performing a quorum write operation
         // It should ensure that the write operation is performed on a majority of nodes
         // in the distributed system to ensure consistency.
+        return null;
     }
     @Override
     public String toString() {

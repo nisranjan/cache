@@ -1,5 +1,8 @@
 package nisran.router;
 
+import java.util.List;
+
+
 //This interface is used to define the quorum read/write service
 // It can be extended to include methods for quorum reads and writes in a distributed system.   
 public interface QuorumRWService {
@@ -21,6 +24,6 @@ public interface QuorumRWService {
      * @param key The key to be written.
      * @param value The value to be written.
      */
-    void quorumWrite(String key, Object value);
+    List<String> quorumWrite(String key, Object value);
 
 }

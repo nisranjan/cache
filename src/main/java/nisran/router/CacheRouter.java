@@ -339,6 +339,13 @@ public class CacheRouter implements CHRoutingService{
         return result;
     }
 
+    /**
+     * Returns an immutable list of the currently known active server instances.
+     * @return A list of active server instances.
+     */
+    public List<ServerInstance> getActiveServerInstances() {
+        return Collections.unmodifiableList(this.currentServerInstances);
+    }
 
     // @Override // Uncomment if ServiceRegistration directly implements ServiceDiscoveryOperations
     /* 
