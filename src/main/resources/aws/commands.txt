@@ -11,7 +11,7 @@ aws ecs delete-service \
     --region <your-region>
 
 ## Docker build command
-docker build -t cache-server:latest .
+docker build -t cache-cluster:vX.XX .
 
 ## Docker tag command
 docker tag cache-cluster:latest 453136820892.dkr.ecr.ap-south-1.amazonaws.com/cache/cluster:latest

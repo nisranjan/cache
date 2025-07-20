@@ -106,14 +106,14 @@ public class QuorumReaderWriter implements QuorumRWService {
                 }
 
                 HttpResponse<String> res = remoteWrite(current, key, value, port, false);
-                response.add(String.format("Response to server{} is {}",current.getNodeIdentifier(),res.statusCode()));
+                response.add(String.format("Response to server{%s} is {%d}",current.getNodeIdentifier(),res.statusCode()));
             }
         } else {
             // Forward quorumWrite to relevant node (not including local)
             logger.debug("Forwarding Write to instance {} for key {}",primaryInstance.getServiceId(),key);
             ServerInstance current = primaryInstance;
             HttpResponse<String> res = remoteWrite(primaryInstance, key, value, port, true);
-            response.add(String.format("Response to server{} is {}",current.getNodeIdentifier(),res.statusCode()));
+            response.add(String.format("Response to server{%s} is {%d}",current.getNodeIdentifier(),res.statusCode()));
            
         }
 

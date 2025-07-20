@@ -54,7 +54,7 @@ public class RoutingCacheController {
 
     @PostMapping("/local/{key}")
     public ResponseEntity<Void> setLocal(@PathVariable String key, @RequestBody Object value) {
-        logger.debug("Called Set() key: {}, value: {}", key, value);
+        logger.debug("Called SetLocal() key: {}, value: {}", key, value);
         ((QuorumReaderWriter)quorumRWService).localWrite(key, value);
         return ResponseEntity.ok().build();
     }

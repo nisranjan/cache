@@ -15,7 +15,7 @@ import software.amazon.awssdk.services.ecs.EcsClient;
 import software.amazon.awssdk.services.servicediscovery.ServiceDiscoveryClientBuilder;
 import software.amazon.awssdk.services.ecs.EcsClientBuilder;
 
-@Configuration
+@Configuration("otherServices")
 @Profile("cluster")
 public class ServiceDiscoveryConfig {
 
