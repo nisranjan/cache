@@ -2,8 +2,10 @@
 This is a cloud native distributed cache implementation which supports a per node router.
 ### Usage ###
 #### Put #### 
-Puts and Key-Value pair in the cache. The key is typically an numeric value (but not essential) and the value can be a complex object.
+Puts and Key-Value pair in the cache using HTTP POST. 
+The key is typically a numeric value (but not essential) and the value can be a complex object.
 ```
+HTTP POST request
 http://{IP}:{Port}/api/cache/{key}
 ```
 A sample object
@@ -22,13 +24,19 @@ A sample object
 [![GET](https://run.pstmn.io/button.svg)](https://www.getpostman.com/run-collection/YOUR_COLLECTION_ID)
 
 ### Get ###
-Get (an existing) object from the cache
-
+Gets a value for an existing Key-Value pair from the cache using HTTP GET Method.
+```
+HTTP GET request
+http://{IP}:{Port}/api/cache/{key}
+```
 [![GET](https://run.pstmn.io/button.svg)](https://www.getpostman.com/run-collection/YOUR_COLLECTION_ID)
 
 ### Delete ###
-Deletes (existing) object from the cache
-
+Deletes an existing Key-Value pair from the cache using HTTP DELETE Method
+```
+HTTP GET request
+http://{IP}:{Port}/api/cache/{key}
+```
 [![DELETE](https://run.pstmn.io/button.svg)](https://www.getpostman.com/run-collection/YOUR_COLLECTION_ID)
 
 
