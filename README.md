@@ -1,5 +1,21 @@
-# DISTRIBUTED CACHE #
-This is a basic distributed cache implementation which supports a per node router.
+## Cache ##
+This is a cloud native distributed cache implementation which supports a per node router.
+
+### Put ###
+Puts and object in the cache
+
+[![PUT](https://run.pstmn.io/button.svg)](https://www.getpostman.com/run-collection/YOUR_COLLECTION_ID)
+
+### Get ###
+Get (an existing) object from the cache
+
+[![GET](https://run.pstmn.io/button.svg)](https://www.getpostman.com/run-collection/YOUR_COLLECTION_ID)
+
+### Delete ###
+Deletes (existing) object from the cache
+
+[![DELETE](https://run.pstmn.io/button.svg)](https://www.getpostman.com/run-collection/YOUR_COLLECTION_ID)
+
 
 ### FEATURES ###
   - #### Cloud Native ####
