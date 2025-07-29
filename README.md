@@ -21,7 +21,7 @@ A sample object
 }
 ```
 
-[![GET](https://run.pstmn.io/button.svg)](https://www.getpostman.com/run-collection/YOUR_COLLECTION_ID)
+[![GET](https://run.pstmn.io/button.svg)](https://www.postman.com/telecoms-geoscientist-17189098/workspace/cache-workspace/request/43236988-fa9bd59a-47aa-4fe3-b8b2-80dbfaf33ff8)
 
 #### Get ####
 Gets a value for an existing Key-Value pair from the cache using HTTP GET Method.
@@ -29,7 +29,7 @@ Gets a value for an existing Key-Value pair from the cache using HTTP GET Method
 HTTP GET request
 http://{IP}:{Port}/api/cache/{key}
 ```
-[![GET](https://run.pstmn.io/button.svg)](https://www.getpostman.com/run-collection/YOUR_COLLECTION_ID)
+[![GET](https://run.pstmn.io/button.svg)](https://www.postman.com/telecoms-geoscientist-17189098/workspace/cache-workspace/request/43236988-f0927579-9539-464f-86ce-14f1757fed61)
 
 #### Delete ####
 Deletes an existing Key-Value pair from the cache using HTTP DELETE Method
@@ -37,7 +37,7 @@ Deletes an existing Key-Value pair from the cache using HTTP DELETE Method
 HTTP DELETE request
 http://{IP}:{Port}/api/cache/{key}
 ```
-[![DELETE](https://run.pstmn.io/button.svg)](https://www.getpostman.com/run-collection/YOUR_COLLECTION_ID)
+[![DELETE](https://run.pstmn.io/button.svg)](https://www.postman.com/telecoms-geoscientist-17189098/workspace/cache-workspace/collection/43236988-9ae3fbfc-4963-46fd-8686-5214148cbd81)
 
 
 ### FEATURES ###
