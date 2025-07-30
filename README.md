@@ -51,6 +51,9 @@ http://{IP}:{Port}/api/cache/{key}
       - Routers communicate to each other, if a key maps to a different server, then the request to read-write is forwarded to relevant server, otherwise its handled locally
   - #### LRU Cache ####
       - Currently supports only Least Recently Used algorithm
+   
+### Cache.Svc Architecture ###
+[Read this for Cache.Svc architecture](/docs/ARCHITECTURE.md)
 
 #### Version ####
 2.0-SNAPSHOT
