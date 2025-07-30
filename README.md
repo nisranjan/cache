@@ -1,5 +1,5 @@
-## Cache ##
-This is a cloud native distributed cache implementation which supports a per node router.
+## Cache.Svc ##
+This is a cloud native distributed cache service with a more reliable per node router.
 ### Usage ###
 #### Put ####
 Puts and Key-Value pair in the cache using HTTP POST. 
@@ -42,15 +42,15 @@ http://{IP}:{Port}/api/cache/{key}
 
 ### FEATURES ###
   - #### Cloud Native ####
-    Cache.svc current runs inside a Container (this service on AWS Elastic Container Service)
-    Cache.svc also runs as a Serverless service (Amazon Fargate)
-    All communication in Cache.svc is HTTP only (i.e. client to server & also server to server including routing calls)
+       - Cache.svc current runs inside a Container (this service on AWS Elastic Container Service)
+       - Cache.svc also runs as a Serverless service (Amazon Fargate)
+       - All communication in Cache.svc is HTTP only (i.e. client to server & also server to server including routing calls)
   - #### Distributed Router ####
       - Every node in the server has a router - this is potentially a more reliable design than a single central router
       - Routing is based on Consistent Hashing algorithm;
       - Routers communicate to each other, if a key maps to a different server, then the request to read-write is forwarded to relevant server, otherwise its handled locally
   - #### LRU Cache ####
-    Currently supports only Least Recently Used algorithm
+      - Currently supports only Least Recently Used algorithm
 
 #### Version ####
 2.0-SNAPSHOT
