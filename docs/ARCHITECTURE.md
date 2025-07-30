@@ -18,7 +18,8 @@ A salient aspect is that router to router communication is HTTP based (as cloud 
 
 The router, on startup of node, registers itself to service discovery, and discovers others nodes as well through service discovery. It builds an internal map of the nodes using Consistent Hashing algorithm. Cache.Svc keys are mapped to this Consistent Hash ring. The server ring is rebuilt periodically. How often this happens can be tuned through parameter __router.router-refresh-interval-seconds__ application parameter.
 
-<img width="742" height="446" alt="Cache Svc Router-Service-Discovery-CHAlgo" src="https://github.com/user-attachments/assets/e2b926e5-1a16-495a-acd5-2d48e0897ef2" alighn="center"/>
+<img width="460" height="350" alt="Cache Svc Router-Service-Discovery-CHAlgo" src="https://github.com/user-attachments/assets/d4c59f94-e7e2-48d9-bb7d-f2cd53a520fb" />
+
 
 When a node receives a client's request, it finds out the node to which this key is mapped (primary), if this is local, it services the request and sends a response. Otherwise, it finds the primary node, forwards the request to the primary node, collects the response from the primary node, and sends the response back to the client.
 
