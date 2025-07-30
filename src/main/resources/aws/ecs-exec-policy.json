@@ -30,7 +30,8 @@
         {
             "Effect": "Allow",
             "Action": [
-                "route53:CreateHostedZone"
+                "route53:CreateHostedZone",
+                "route53:CreateHealthCheck"
             ],
             "Resource": "*"
         },

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.Profile;
@@ -39,6 +40,9 @@ public class EcsMetadataService {
     private final ObjectMapper objectMapper;
     private final EcsClient ecsClient;
 
+    @Value("${cache.service.discovery.ip-version}")
+    private String ipVersion;
+
     @Autowired
     public EcsMetadataService(HttpClient httpClient, ObjectMapper objectMapper, EcsClient ecsClient) {
         this.httpClient = httpClient;
@@ -57,7 +61,7 @@ public class EcsMetadataService {
         return fetchTaskAndClusterArn().flatMap(arns -> {
             String taskArn = arns.get("taskArn");
             String clusterArn = arns.get("clusterArn");
-            return getPrivateIp(taskArn, clusterArn)
+            return getPrivateIp(taskArn, clusterArn, ipVersion)
                     .map(ip -> new EcsMetadata(taskArn, clusterArn, ip));
         });
     }
@@ -103,7 +107,7 @@ public class EcsMetadataService {
         return Optional.empty();
     }
 
-    private Optional<String> getPrivateIp(String taskArn, String clusterArn) {
+    private Optional<String> getPrivateIp(String taskArn, String clusterArn, String ipVersion) {
         DescribeTasksRequest describeTasksRequest = DescribeTasksRequest.builder()
                 .cluster(clusterArn)
                 .tasks(taskArn)
@@ -114,10 +118,11 @@ public class EcsMetadataService {
                 DescribeTasksResponse describeTasksResponse = ecsClient.describeTasks(describeTasksRequest);
                 if (!describeTasksResponse.tasks().isEmpty()) {
                     Task task = describeTasksResponse.tasks().get(0);
+                    String ipAddressDetailName = "ipv6".equalsIgnoreCase(ipVersion) ? "privateIPv6Address" : "privateIPv4Address";
                     Optional<String> ip = task.attachments().stream()
                             .filter(att -> "ElasticNetworkInterface".equals(att.type()))
                             .flatMap(att -> att.details().stream())
-                            .filter(det -> "privateIPv4Address".equals(det.name()))
+                            .filter(det -> ipAddressDetailName.equals(det.name()))
                             .map(det -> det.value())
                             .findFirst();
 

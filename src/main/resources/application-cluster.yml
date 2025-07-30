@@ -27,6 +27,7 @@ cache:
       enabled: true
       heartbeat-interval: 300000
       deregister-interval: 100000
+      ip-version: ipv4
 
 logging:
   level:

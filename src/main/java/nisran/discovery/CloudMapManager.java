@@ -2,10 +2,12 @@ package nisran.discovery;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.context.annotation.Profile;
 import software.amazon.awssdk.services.servicediscovery.ServiceDiscoveryClient;
 import software.amazon.awssdk.services.servicediscovery.model.*;
+import software.amazon.awssdk.services.servicediscovery.model.OperationStatus;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,7 +21,10 @@ public class CloudMapManager {
 
     private final ServiceDiscoveryClient serviceDiscoveryClient;
     private static final int MAX_RETRIES = 10;
-    private static final int RETRY_DELAY_SECONDS = 10;
+    private static final int RETRY_DELAY_SECONDS = 100;
+
+    @Value("${cache.service.discovery.ip-version}")
+    private String ipVersion;
 
     public CloudMapManager(ServiceDiscoveryClient serviceDiscoveryClient) {
         this.serviceDiscoveryClient = serviceDiscoveryClient;
@@ -112,16 +117,10 @@ public class CloudMapManager {
         return serviceId;
     }
 
-    public String findOrCreateInstance(String namespaceName, String serviceName, String serviceId, String awsTaskId, String ip, int port, String awsTaskARN) {
+    public String findOrCreateInstance(String serviceId, String awsTaskId, String ip, int port, String awsTaskARN) {
         logger.debug("Finding or creating instance with instanceId: {} in service: {}", awsTaskId, serviceId);
 
         // Validate required parameters
-        if (namespaceName == null || namespaceName.isEmpty()) {
-            throw new IllegalArgumentException("Namespace name cannot be null or empty");
-        }
-        if (serviceName == null || serviceName.isEmpty()) {
-            throw new IllegalArgumentException("Service name cannot be null or empty");
-        }
         if (serviceId == null || serviceId.isEmpty()) {
             throw new IllegalArgumentException("Service ID cannot be null or empty");
         }
@@ -129,10 +128,10 @@ public class CloudMapManager {
             throw new IllegalArgumentException("Task ID cannot be null or empty");
         }
 
-        String instanceId = findInstance(namespaceName, serviceName, awsTaskId);
+        String instanceId = findInstance(serviceId, awsTaskId);
 
         if (instanceId == null) {
-            logger.info("Instance '{}' not found in service '{}'. Creating new instance...", awsTaskId, serviceName);
+            logger.info("Instance '{}' not found in service '{}'. Creating new instance...", awsTaskId, serviceId);
             // Create instance only once
             instanceId = createInstance(serviceId, awsTaskId, ip, port, awsTaskARN);
 
@@ -142,7 +141,7 @@ public class CloudMapManager {
                 logger.info("Waiting for instance creation to complete... (Attempt {}/{})", retryCount + 1, MAX_RETRIES);
                 try {
                     TimeUnit.SECONDS.sleep(RETRY_DELAY_SECONDS);
-                    instanceId = findInstance(namespaceName, serviceName, awsTaskId);
+                    instanceId = findInstance(serviceId, awsTaskId);
                     if (instanceId != null) {
                         logger.info("Instance '{}' successfully created", awsTaskId);
                         break;
@@ -253,6 +252,7 @@ public class CloudMapManager {
 
     private String createService(String serviceName, String namespaceId) {
         logger.info("Creating new service with name: {} in namespace: {}", serviceName, namespaceId);
+        RecordType recordType = "ipv6".equalsIgnoreCase(ipVersion) ? RecordType.AAAA : RecordType.A;
 
         try {
             CreateServiceRequest createRequest = CreateServiceRequest.builder()
@@ -261,7 +261,7 @@ public class CloudMapManager {
                     .description("Service for " + serviceName)
                     .dnsConfig(DnsConfig.builder()
                             .dnsRecords(DnsRecord.builder()
-                                    .type(RecordType.A)
+                                    .type(recordType)
                                     .ttl(60L)
                                     .build())
                             .routingPolicy(RoutingPolicy.WEIGHTED)
@@ -279,33 +279,27 @@ public class CloudMapManager {
         }
     }
 
-    private String findInstance(String namespaceName, String serviceName, String awsTaskId) {
+    private String findInstance(String serviceId, String awsTaskId) {
         String instanceId = null;
         try {
-            logger.debug("Looking for existing instance with instanceId: {} in service: {}", awsTaskId, serviceName);
+            logger.debug("Looking for existing instance with instanceId: {} in service: {}", awsTaskId, serviceId);
 
-            DiscoverInstancesRequest discoverRequest = DiscoverInstancesRequest.builder()
-                    .namespaceName(namespaceName)
-                    .serviceName(serviceName)
-                    .build();
+            GetInstanceRequest getRequest = GetInstanceRequest.builder()
+                .serviceId(serviceId)
+                .instanceId(awsTaskId)
+                .build();
 
-            DiscoverInstancesResponse discoverResponse = serviceDiscoveryClient.discoverInstances(discoverRequest);
-
-            boolean exists = discoverResponse.instances().stream()
-                    .anyMatch(instance -> instance.instanceId().equals(awsTaskId));
-
-            if (exists) {
-                instanceId = awsTaskId;
-                logger.debug("Found existing instance with instanceId: {}", awsTaskId);
-            } else {
-                logger.debug("Instance '{}' not found in service '{}'.", awsTaskId, serviceName);
+            try {
+                GetInstanceResponse getResponse = serviceDiscoveryClient.getInstance(getRequest);
+                if (getResponse != null) {
+                    instanceId = awsTaskId;
+                    logger.debug("Found existing instance with instanceId: {}", awsTaskId);
+                }
+            } catch (InstanceNotFoundException e) {
+                logger.debug("Instance '{}' not found in service '{}'.", awsTaskId, serviceId);
             }
-        } catch (NamespaceNotFoundException e) {
-            logger.debug("Namespace '{}' not found during instance discovery. This might be expected if namespace was just created.", namespaceName);
-        } catch (ServiceNotFoundException e) {
-            logger.debug("Service '{}' not found during instance discovery. This might be expected if service was just created.", serviceName);
         } catch (Exception e) {
-            logger.error("Failed to find instance '{}' in service '{}'", awsTaskId, serviceName, e);
+            logger.debug("Failed to find instance '{}' in service '{}'", awsTaskId, serviceId, e);
         }
         return instanceId;
     }
@@ -313,9 +307,11 @@ public class CloudMapManager {
     private String createInstance(String serviceId, String awsTaskId, String ip, int port, String awsTaskARN) {
         logger.info("Creating new instance with instanceId: {} in service: {}", awsTaskId, serviceId);
 
+        String ipAttributeKey = "ipv6".equalsIgnoreCase(ipVersion) ? "AWS_INSTANCE_IPV6" : "AWS_INSTANCE_IPV4";
+
         try {
             Map<String, String> attributes = new HashMap<>();
-            attributes.put("AWS_INSTANCE_IPV4", ip != null ? ip : "");
+            attributes.put(ipAttributeKey, ip != null ? ip : "");
             attributes.put("AWS_INSTANCE_PORT", String.valueOf(port));
             attributes.put("ECS_TASK_ARN", awsTaskARN != null ? awsTaskARN : "");
             attributes.put("ECS_TASK_ID", awsTaskId);
@@ -326,11 +322,55 @@ public class CloudMapManager {
                     .attributes(attributes)
                     .build();
 
-            serviceDiscoveryClient.registerInstance(registerRequest);
-            logger.info("Successfully registered new instance with instanceId: {}", awsTaskId);
-            return awsTaskId;
+            RegisterInstanceResponse response = serviceDiscoveryClient.registerInstance(registerRequest);
+            String operationId = response.operationId();
+            logger.info("Instance registration initiated - OperationId: {}, ServiceId: {}, InstanceId: {}", 
+                        operationId, serviceId, awsTaskId);
+
+            // Wait for operation to complete
+            int retryCount = 0;
+            while (retryCount < MAX_RETRIES) {
+                GetOperationRequest getOperationRequest = GetOperationRequest.builder()
+                        .operationId(operationId)
+                        .build();
+                
+                GetOperationResponse operation = serviceDiscoveryClient.getOperation(getOperationRequest);
+                OperationStatus status = operation.operation().status();
+                
+                // Log operation details
+                logger.info("Operation status check - OperationId: {}, Status: {}, Attempt: {}/{}", 
+                            operationId, status, retryCount + 1, MAX_RETRIES);
+
+                if (status == OperationStatus.SUCCESS) {
+                    logger.info("Instance registration succeeded - OperationId: {}, ServiceId: {}, InstanceId: {}", 
+                                operationId, serviceId, awsTaskId);
+                    return awsTaskId;
+                } else if (status == OperationStatus.FAIL) {
+                    String errorMessage = operation.operation().errorMessage();
+                    logger.error("Instance registration failed - OperationId: {}, ServiceId: {}, InstanceId: {}, Error: {}", 
+                                operationId, serviceId, awsTaskId, errorMessage);
+                    throw new RuntimeException("Failed to register instance: " + errorMessage);
+                } else if (status == OperationStatus.PENDING) {
+                    logger.debug("Operation pending - OperationId: {}, ServiceId: {}, InstanceId: {}", 
+                                operationId, serviceId, awsTaskId);
+                }
+
+                try {
+                    TimeUnit.SECONDS.sleep(RETRY_DELAY_SECONDS);
+                } catch (InterruptedException e) {
+                    logger.warn("Operation monitoring interrupted - OperationId: {}", operationId);
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+                retryCount++;
+            }
+
+            logger.warn("Operation timed out - OperationId: {}, ServiceId: {}, InstanceId: {}", 
+                        operationId, serviceId, awsTaskId);
+            throw new RuntimeException("Instance registration operation timed out after " + MAX_RETRIES + " retries");
         } catch (Exception e) {
-            logger.error("Failed to create instance '{}' in service '{}'", awsTaskId, serviceId, e);
+            logger.warn("Instance registration failed with exception - ServiceId: {}, InstanceId: {}, Error: {}", 
+                        serviceId, awsTaskId, e.getMessage(), e);
             throw new RuntimeException("Failed to create instance: " + awsTaskId, e);
         }
     }

@@ -54,7 +54,7 @@ public class ServiceRegistration {
                 
                 ecsMetadata.setTaskArn(metadata.getTaskArn());
                 ecsMetadata.setClusterArn(metadata.getClusterArn());
-                ecsMetadata.setPrivateIpv4Address(metadata.getPrivateIpv4Address());
+                ecsMetadata.setIpAddress(metadata.getIpAddress());
                 
                 logger.info("Fetched task metadata - Task ARN: {}, Cluster ARN: {}, Task ID: {}",
                             ecsMetadata.getTaskArn(), ecsMetadata.getClusterArn(), ecsMetadata.getTaskId());
@@ -89,12 +89,10 @@ public class ServiceRegistration {
             ecsMetadata.setServiceId(cloudMapManager.findOrCreateService(ecsMetadata.getServiceName(), ecsMetadata.getNamespaceId()));
             
             cloudMapManager.findOrCreateInstance(
-                ecsMetadata.getNamespaceName(), 
-                ecsMetadata.getServiceName(), 
-                ecsMetadata.getServiceId(), 
-                ecsMetadata.getTaskId(), 
-                ecsMetadata.getPrivateIpv4Address(), 
-                ecsMetadata.getPort(), 
+                ecsMetadata.getServiceId(),
+                ecsMetadata.getTaskId(),
+                ecsMetadata.getIpAddress(),
+                ecsMetadata.getPort(),
                 ecsMetadata.getTaskArn()
             );
             
@@ -137,6 +135,6 @@ public class ServiceRegistration {
     }
 
     public String getIp() {
-        return ecsMetadata.getPrivateIpv4Address();
+        return ecsMetadata.getIpAddress();
     }
 }

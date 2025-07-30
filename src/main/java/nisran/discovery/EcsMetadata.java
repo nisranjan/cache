@@ -15,7 +15,7 @@ public class EcsMetadata {
 
     private String taskArn;
     private String clusterArn;
-    private String privateIpv4Address;
+    private String ipAddress;
     private String taskId;
     private String serviceId;
     private String namespaceId;
@@ -26,10 +26,10 @@ public class EcsMetadata {
     // Default constructor for Spring
     public EcsMetadata() {}
 
-    public EcsMetadata(String taskArn, String clusterArn, String privateIpv4Address) {
+    public EcsMetadata(String taskArn, String clusterArn, String ipAddress) {
         this.taskArn = taskArn;
         this.clusterArn = clusterArn;
-        this.privateIpv4Address = privateIpv4Address;
+        this.ipAddress = ipAddress;
         if (taskArn != null) {
             this.taskId = taskArn.substring(taskArn.lastIndexOf("/") + 1);
         }
@@ -38,7 +38,7 @@ public class EcsMetadata {
     // Getters
     public String getTaskArn() { return taskArn; }
     public String getClusterArn() { return clusterArn; }
-    public String getPrivateIpv4Address() { return privateIpv4Address; }
+    public String getIpAddress() { return ipAddress; }
     public String getTaskId() { return taskId; }
     public String getServiceId() { return serviceId; }
     public String getNamespaceId() { return namespaceId; }
@@ -54,7 +54,7 @@ public class EcsMetadata {
         }
     }
     public void setClusterArn(String clusterArn) { this.clusterArn = clusterArn; }
-    public void setPrivateIpv4Address(String privateIpv4Address) { this.privateIpv4Address = privateIpv4Address; }
+    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
     public void setServiceId(String serviceId) { this.serviceId = serviceId; }
     public void setNamespaceId(String namespaceId) { this.namespaceId = namespaceId; }
     public void setNamespaceName(String namespaceName) { this.namespaceName = namespaceName; }
@@ -62,7 +62,7 @@ public class EcsMetadata {
     public void setPort(int port) { this.port = port; }
 
     public boolean isComplete() {
-        return taskArn != null && clusterArn != null && privateIpv4Address != null && 
+        return taskArn != null && clusterArn != null && ipAddress != null && 
                serviceId != null && namespaceId != null;
     }
 
@@ -71,7 +71,7 @@ public class EcsMetadata {
         return "EcsMetadata{" +
                 "taskArn='" + taskArn + '\'' +
                 ", clusterArn='" + clusterArn + '\'' +
-                ", privateIpv4Address='" + privateIpv4Address + '\'' +
+                ", ipAddress='" + ipAddress + '\'' +
                 ", taskId='" + taskId + '\'' +
                 ", serviceId='" + serviceId + '\'' +
                 ", namespaceId='" + namespaceId + '\'' +
