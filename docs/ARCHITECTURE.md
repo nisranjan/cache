@@ -11,13 +11,16 @@ like so. (e.g. PostGres, MSSQL, etc.)
 
 Cache.Svc uses a per node router architecture which offers higher fault tolerance. In comparison to a Master-Slave architecture where a failure of master can bring the service down (even in realworld databases like MSSQL the service goes down temporarily), the Per Node Router architecure offers uninterrupted service to clients. (Clients can potentially discover all nodes through service discovery)
 
-<img width="437" height="341" alt="Cache Svc Per-Node-Router-Architecture" src="https://github.com/user-attachments/assets/5e7a6e8b-1b8b-4755-98d8-6a76fcca3343" />
+<img width="437" height="341" alt="Cache Svc Per-Node-Router-Architecture" src="https://github.com/user-attachments/assets/5e7a6e8b-1b8b-4755-98d8-6a76fcca3343" alighn="center" />
 
 A salient aspect is that router to router communication is HTTP based (as cloud native transport). This is potentially scaleable for the ring topology for this architecture using extended HTTP 3.0 using UDP.
 
-### Higher resilience  ###
+### CH Router, Service discovery offer higher resilience  ###
 
 The router, on startup of node, registers itself to service discovery, and discovers others nodes as well through service discovery. It builds an internal map of the nodes using Consistent Hashing algorithm. Cache.Svc keys are mapped to this Consistent Hash ring. The server ring is rebuilt periodically which can be tuned through parameter router.router-refresh-interval-seconds application parameter.
+
+<img width="742" height="446" alt="Cache Svc Router-Service-Discovery-CHAlgo" src="https://github.com/user-attachments/assets/e2b926e5-1a16-495a-acd5-2d48e0897ef2" alighn="center"/>
+
 
 When a node receives a client's request, it finds out the node to which this key is mapped (primary), if this is local, it services the request and sends a response. Otherwise, it finds the primary node, forwards the request to the primary node, collects the response from the primary node, and sends the response back to the client.
 
