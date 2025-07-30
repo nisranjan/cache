@@ -15,5 +15,10 @@ Cache.Svc uses a per node router architecture which offers higher fault toleranc
 
 Another salient aspect is that router to router communication is HTTP based (as cloud native transport). This is potentially scaleable for the ring topology for this architecture using extended HTTP 3.0 using UDP.
 
+### Role of Service Discovery ###
+- every router maintains a list of nodes maintained internally in a consistent hashing algorithm
+- on startup, routers discover other services through service discovery
+- client can potentially query the service discovery to recover all possible client
+
 
 
