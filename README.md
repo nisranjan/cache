@@ -42,9 +42,9 @@ http://{IP}:{Port}/api/cache/{key}
 
 ### FEATURES ###
   - #### Cloud Native ####
-    This is currenly implemented to work only on Amazon AWS. Plus all communication is HTTP only (even server to server communication).
-  - #### Serverless ####
-    Also this currently works only on FARGATE (Serverless technology) although can easily be configured for EC2 instances
+    Cache.svc current runs inside a Container (this service on AWS Elastic Container Service)
+    Cache.svc also runs as a Serverless service (Amazon Fargate)
+    All communication in Cache.svc is HTTP only (i.e. client to server & also server to server including routing calls)
   - #### Distributed Router ####
       - Every node in the server has a router - this is potentially a more reliable design than a single central router
       - Routing is based on Consistent Hashing algorithm;
