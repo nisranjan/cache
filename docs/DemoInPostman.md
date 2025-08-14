@@ -1,13 +1,13 @@
 ## Postman Demo ##
 These are the few issues that I have often observed when running a demo of the cache service in Postman
-  - Initial steps ... View Collection, Cluster folder
-  - Issue with "Guest" users
-  - Issues with Environment variables
-  - Issues with Postman Web App
+  - [Initial steps ... View Collection, Cluster folder](#initial-steps--view-collection-cluster-folder)
+  - [Issue with "Guest" users](#issue-with-guest-users)
+  - [Issues with Environment variables](#environment-setting-and-issues)
+  - [Issues with Postman Web App](#issues-with-postman-web-app)
 
 I know this is a bit cumbersome for a demo, but bear with me and I will solve this soon.
 
-### Initial Steps ... View Collection, Cluster folder ###
+### Initial Steps ... View Collection, Cluster folder ### 
 On pressing the "Run in Postman" button, will take you to the "Fork the collection in your worksapce" screen. (You can try that ... at your expense :) ) 
 
 <img width="374" height="323" alt="image" src="https://github.com/user-attachments/assets/822d59e5-90eb-435b-9136-290421ed9e91" />
