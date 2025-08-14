@@ -21,7 +21,7 @@ A sample object
 }
 ```
 
-[![GET](https://run.pstmn.io/button.svg)](https://www.postman.com/telecoms-geoscientist-17189098/workspace/cache-workspace/request/43236988-fa9bd59a-47aa-4fe3-b8b2-80dbfaf33ff8)
+[<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://app.getpostman.com/run-collection/43236988-9ae3fbfc-4963-46fd-8686-5214148cbd81?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D43236988-9ae3fbfc-4963-46fd-8686-5214148cbd81%26entityType%3Dcollection%26workspaceId%3D8e152caf-acc5-4aeb-83e2-e082ae66c835#?env%5BPRODUCTION%5D=W3sia2V5Ijoibm9kZTEiLCJ2YWx1ZSI6IjMuNi45My4yMTIiLCJlbmFibGVkIjp0cnVlLCJ0eXBlIjoiZGVmYXVsdCIsInNlc3Npb25WYWx1ZSI6IjMuNi45My4yMTIiLCJjb21wbGV0ZVNlc3Npb25WYWx1ZSI6IjMuNi45My4yMTIiLCJzZXNzaW9uSW5kZXgiOjB9LHsia2V5Ijoibm9kZTIiLCJ2YWx1ZSI6IjEzLjEyNy4yMzkuMjE3IiwiZW5hYmxlZCI6dHJ1ZSwidHlwZSI6ImRlZmF1bHQiLCJzZXNzaW9uVmFsdWUiOiIxMy4xMjcuMjM5LjIxNyIsImNvbXBsZXRlU2Vzc2lvblZhbHVlIjoiMTMuMTI3LjIzOS4yMTciLCJzZXNzaW9uSW5kZXgiOjF9XQ==)
 
 #### Get ####
 Gets a value for an existing Key-Value pair from the cache using HTTP GET Method.
@@ -29,7 +29,7 @@ Gets a value for an existing Key-Value pair from the cache using HTTP GET Method
 HTTP GET request
 http://{IP}:{Port}/api/cache/{key}
 ```
-[![GET](https://run.pstmn.io/button.svg)](https://www.postman.com/telecoms-geoscientist-17189098/workspace/cache-workspace/request/43236988-f0927579-9539-464f-86ce-14f1757fed61)
+[<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://app.getpostman.com/run-collection/43236988-9ae3fbfc-4963-46fd-8686-5214148cbd81?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D43236988-9ae3fbfc-4963-46fd-8686-5214148cbd81%26entityType%3Dcollection%26workspaceId%3D8e152caf-acc5-4aeb-83e2-e082ae66c835#?env%5BPRODUCTION%5D=W3sia2V5Ijoibm9kZTEiLCJ2YWx1ZSI6IjMuNi45My4yMTIiLCJlbmFibGVkIjp0cnVlLCJ0eXBlIjoiZGVmYXVsdCIsInNlc3Npb25WYWx1ZSI6IjMuNi45My4yMTIiLCJjb21wbGV0ZVNlc3Npb25WYWx1ZSI6IjMuNi45My4yMTIiLCJzZXNzaW9uSW5kZXgiOjB9LHsia2V5Ijoibm9kZTIiLCJ2YWx1ZSI6IjEzLjEyNy4yMzkuMjE3IiwiZW5hYmxlZCI6dHJ1ZSwidHlwZSI6ImRlZmF1bHQiLCJzZXNzaW9uVmFsdWUiOiIxMy4xMjcuMjM5LjIxNyIsImNvbXBsZXRlU2Vzc2lvblZhbHVlIjoiMTMuMTI3LjIzOS4yMTciLCJzZXNzaW9uSW5kZXgiOjF9XQ==)
 
 #### Delete ####
 Deletes an existing Key-Value pair from the cache using HTTP DELETE Method
@@ -37,7 +37,7 @@ Deletes an existing Key-Value pair from the cache using HTTP DELETE Method
 HTTP DELETE request
 http://{IP}:{Port}/api/cache/{key}
 ```
-[![DELETE](https://run.pstmn.io/button.svg)](https://www.postman.com/telecoms-geoscientist-17189098/workspace/cache-workspace/collection/43236988-9ae3fbfc-4963-46fd-8686-5214148cbd81)
+[<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://app.getpostman.com/run-collection/43236988-9ae3fbfc-4963-46fd-8686-5214148cbd81?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D43236988-9ae3fbfc-4963-46fd-8686-5214148cbd81%26entityType%3Dcollection%26workspaceId%3D8e152caf-acc5-4aeb-83e2-e082ae66c835#?env%5BPRODUCTION%5D=W3sia2V5Ijoibm9kZTEiLCJ2YWx1ZSI6IjMuNi45My4yMTIiLCJlbmFibGVkIjp0cnVlLCJ0eXBlIjoiZGVmYXVsdCIsInNlc3Npb25WYWx1ZSI6IjMuNi45My4yMTIiLCJjb21wbGV0ZVNlc3Npb25WYWx1ZSI6IjMuNi45My4yMTIiLCJzZXNzaW9uSW5kZXgiOjB9LHsia2V5Ijoibm9kZTIiLCJ2YWx1ZSI6IjEzLjEyNy4yMzkuMjE3IiwiZW5hYmxlZCI6dHJ1ZSwidHlwZSI6ImRlZmF1bHQiLCJzZXNzaW9uVmFsdWUiOiIxMy4xMjcuMjM5LjIxNyIsImNvbXBsZXRlU2Vzc2lvblZhbHVlIjoiMTMuMTI3LjIzOS4yMTciLCJzZXNzaW9uSW5kZXgiOjF9XQ==)
 
 
 ### FEATURES ###
