@@ -1,11 +1,14 @@
 ## Postman Demo ##
 These are the few issues that I have often observed when running a demo of the cache service in Postman
-  - A Signed In Postman user
-  - Postman Desktop / Web Application
+  - Initial steps ... View Collection, Cluster folder
+  - Issue with "Guest" users
   - Issues with Environment variables
+  - Issues with Postman Web App
 
-### Starting with the Postman Demo ###
-Pressing the "Run in Postman" button, will take you to the "Fork the collection in your worksapce" screen. (You can try that ...) 
+I know this is a bit cumbersome for a demo, but bear with me and I will solve this soon.
+
+### Initial Steps ... View Collection, Cluster folder ###
+On pressing the "Run in Postman" button, will take you to the "Fork the collection in your worksapce" screen. (You can try that ... at your expense :) ) 
 
 <img width="374" height="323" alt="image" src="https://github.com/user-attachments/assets/822d59e5-90eb-435b-9136-290421ed9e91" />
 
@@ -14,9 +17,12 @@ My suggestion is to press the "View Collection" link that, which will take you t
 
 <img width="1845" height="833" alt="image" src="https://github.com/user-attachments/assets/6f73a752-9711-44c2-8444-d4353ff73e49" />
 
-Since the Web Demo works in cluster mode to demostrate the distributed servers, CH algo, etc., open the folder "Cluster" and have an initial feel of the APIs in them
+Since the Web Demo works in cluster mode to demostrate the distributed servers, CH algo, etc., next step is to verify the folder "Cluster" and have an initial feel of the APIs in them
 
 <img width="150" height="200" alt="image" src="https://github.com/user-attachments/assets/689d1fac-920a-4926-8d4b-eaa34145b4d3" />
+
+
+### Issue with "Guest" users ###
 
 At this point, you should be Signed In. To do this you should see a "Sign In" link at top right corner. **Pls do NOTE that if you don't Sign In to postman, __it will not allow you to make API requests__"
 
@@ -44,6 +50,21 @@ In the image above, you will see garbage values in "Current Values" (in this cas
 <img width="400" height="190" alt="image" src="https://github.com/user-attachments/assets/7143e359-7175-4ce8-897f-5a473fd61323" />
 
 
-At this point, I also recommend that you use the Postman Desktop App, in case you have decided to keep using the Postman Web App, then please power through below ... I am assuming you are already signed in at this stage.
 
+**Next step is to choose the Postman Desktop or Web Application. I suggest that you you go with the Desktop App. In case you decide to keep using the Web App read through the next section**
 
+### Issues with Postman Web App ###
+
+The issue with Postman Web app is primarily a CORS related issue. To work around this Postman has provided a couple of agents 
+  - Cloud Agent
+  - Browser Agent
+
+You can see the Agents at the bottom of the browser right hand side (I'm assuming you are signed in)
+
+<img width="450" height="43" alt="image" src="https://github.com/user-attachments/assets/b5017f76-907a-4a91-b53b-b39fd8639d08" />
+
+Click on the "Browser / Cloud Agent", which will open a multi select user interface. Ensure that Cloud Agent is selected
+
+<img width="250" height="276" alt="image" src="https://github.com/user-attachments/assets/913b51c4-219d-4b03-9567-43510fc44ef6" />
+
+By this time, you should be able to test APIs
